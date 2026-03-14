@@ -22,6 +22,32 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  socialProviders: {
+    ...(env.GOOGLE_CLIENT_ID
+      ? {
+        google: {
+          clientId: env.GOOGLE_CLIENT_ID,
+          clientSecret: env.GOOGLE_CLIENT_SECRET!,
+        },
+      }
+      : {}),
+    ...(env.APPLE_CLIENT_ID
+      ? {
+        apple: {
+          clientId: env.APPLE_CLIENT_ID,
+          clientSecret: env.APPLE_CLIENT_SECRET!,
+        },
+      }
+      : {}),
+    ...(env.FACEBOOK_CLIENT_ID
+      ? {
+        facebook: {
+          clientId: env.FACEBOOK_CLIENT_ID,
+          clientSecret: env.FACEBOOK_CLIENT_SECRET!,
+        },
+      }
+      : {}),
+  },
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   plugins: [nextCookies(), expo()],
