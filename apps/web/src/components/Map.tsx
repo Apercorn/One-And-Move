@@ -5,17 +5,8 @@ import { TAXI_STANDS } from "@One-and-Move/db/data/taxi-stands";
 import { Bus, Car, Navigation } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-	createSimulatedUser,
-	createSimulatedVehicles,
-	DEFAULT_CONFIG,
-	resolveRoadPaths,
-	type SimulatedUser,
-	type SimulatedVehicle,
-	type SimulationConfig,
-	tickUser,
-	tickVehicles,
-} from "@/lib/simulation";
+import type { InterpolatedUser } from "@/lib/use-vehicle-stream";
+import { useVehicleStream } from "@/lib/use-vehicle-stream";
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -150,7 +141,7 @@ function MapLibreInner({
 	fromMarker?: LatLng | null;
 	toMarker?: LatLng | null;
 	routePoints?: LatLng[];
-	simUser?: SimulatedUser | null;
+	simUser?: InterpolatedUser | null;
 	vehicles: Vehicle[];
 }) {
 	// react-map-gl v8 exports MapLibre-flavoured components from this sub-path
@@ -318,6 +309,37 @@ function MapLibreInner({
 
 	const tileUrl = darkMode ? DARK_TILE_URL : LIGHT_TILE_URL;
 
+	// Memoize mapStyle so MapLibre only reloads the style when darkMode changes,
+	// not on every vehicle tick / parent re-render.
+	const mapStyle = useMemo(
+		() => ({
+			version: 8 as const,
+			glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+			sources: {
+				"carto-tiles": {
+					type: "raster" as const,
+					tiles: [tileUrl],
+					tileSize: 256,
+					attribution:
+						"© <a href='https://www.openstreetmap.org/copyright'>OSM</a> © <a href='https://carto.com/'>CARTO</a>",
+				},
+			},
+			layers: [
+				{
+					id: "carto-tiles-layer",
+					type: "raster" as const,
+					source: "carto-tiles",
+					minzoom: 0,
+					maxzoom: 22,
+				},
+			],
+		}),
+		[tileUrl]
+	);
+
+	// Memoize mapLib import so it isn't re-evaluated on every render
+	const mapLib = useMemo(() => import("maplibre-gl"), []);
+
 	return (
 		<Map
 			initialViewState={{
@@ -331,29 +353,8 @@ function MapLibreInner({
 				"taxi-stands-clusters",
 				"taxi-stands-point",
 			]}
-			mapLib={import("maplibre-gl")}
-			mapStyle={{
-				version: 8,
-				glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-				sources: {
-					"carto-tiles": {
-						type: "raster",
-						tiles: [tileUrl],
-						tileSize: 256,
-						attribution:
-							"© <a href='https://www.openstreetmap.org/copyright'>OSM</a> © <a href='https://carto.com/'>CARTO</a>",
-					},
-				},
-				layers: [
-					{
-						id: "carto-tiles-layer",
-						type: "raster",
-						source: "carto-tiles",
-						minzoom: 0,
-						maxzoom: 22,
-					},
-				],
-			}}
+			mapLib={mapLib}
+			mapStyle={mapStyle}
 			onClick={handleMapClick}
 			onMouseEnter={() => {
 				const canvas = mapRef.current?.getCanvas();
@@ -866,54 +867,25 @@ export default function WebMap({
 	flyTo,
 	darkMode = false,
 }: WebMapProps) {
-	// ── Simulation state ──────────────────────────────
-	const [simVehicles, setSimVehicles] = useState<SimulatedVehicle[]>(() =>
-		createSimulatedVehicles()
+	// ── Server-streamed simulation via SSE + 60fps client interpolation
+	const { vehicles: streamVehicles, simUser } = useVehicleStream();
+
+	// Map streamed vehicles to the Vehicle shape the map expects
+	const vehicles = useMemo<Vehicle[]>(
+		() =>
+			streamVehicles.map((v) => ({
+				id: v.id,
+				type: v.type,
+				lat: v.lat,
+				lng: v.lng,
+				name: v.name,
+				capacity: v.capacity,
+				avgCost: v.avgCost,
+				route: v.route,
+				heading: v.heading,
+			})),
+		[streamVehicles]
 	);
-	const [simUser, setSimUser] = useState<SimulatedUser>(() =>
-		createSimulatedUser()
-	);
-	const [simConfig] = useState<SimulationConfig>(() => DEFAULT_CONFIG);
-	const lastTickRef = useRef<number>(Date.now());
-
-	// On mount, snap vehicle waypoints to real road geometry via OSRM
-	useEffect(() => {
-		let cancelled = false;
-		resolveRoadPaths(simVehicles).then((snapped) => {
-			if (!cancelled) setSimVehicles([...snapped]);
-		});
-		return () => {
-			cancelled = true;
-		};
-		// Run once on mount only
-		// biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only
-	}, []);
-
-	// Tick loop — runs entirely in-browser, no separate process needed
-	useEffect(() => {
-		if (!simConfig.running) return;
-		const id = setInterval(() => {
-			const now = Date.now();
-			const delta = (now - lastTickRef.current) / 1000;
-			lastTickRef.current = now;
-			setSimVehicles((prev) => tickVehicles(prev, simConfig, delta));
-			setSimUser((prev) => tickUser(prev, simConfig, delta));
-		}, simConfig.tickInterval);
-		return () => clearInterval(id);
-	}, [simConfig]);
-
-	// Map simulated vehicles to the Vehicle shape the map expects
-	const vehicles: Vehicle[] = simVehicles.map((v) => ({
-		id: v.id,
-		type: v.type,
-		lat: v.lat,
-		lng: v.lng,
-		name: v.name,
-		capacity: v.capacity,
-		avgCost: v.avgCost,
-		route: v.route,
-		heading: v.heading,
-	}));
 
 	return (
 		<div className="absolute inset-0 overflow-hidden">
