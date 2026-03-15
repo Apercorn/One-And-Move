@@ -1,18 +1,15 @@
-import type { LatLng, SimulatedUser, SimulatedVehicle } from "@/lib/simulation";
+import type { LatLng, SimulatedVehicle } from "@/lib/simulation";
 import {
   applyResolvedPaths,
-  createSimulatedUser,
   createSimulatedVehicles,
   DEFAULT_CONFIG,
   resolveRoadPaths,
-  tickUser,
   tickVehicles,
 } from "@/lib/simulation";
 
 /* ─── Singleton simulation state ────────────────── */
 
 let vehicles: SimulatedVehicle[] | null = null;
-let simUser: SimulatedUser | null = null;
 let lastTick = Date.now();
 /** Resolved waypoint lookup — survives vehicle object replacement by tick() */
 let resolvedPaths: Map<string, LatLng[]> | null = null;
@@ -21,13 +18,12 @@ let roadSnapPromise: Promise<void> | null = null;
 function ensureInitialised(): void {
   if (vehicles === null) {
     vehicles = createSimulatedVehicles();
-    simUser = createSimulatedUser();
     lastTick = Date.now();
   }
 }
 
 function tick(): void {
-  if (!vehicles || !simUser) return;
+  if (!vehicles) return;
   const now = Date.now();
   const delta = (now - lastTick) / 1000;
   lastTick = now;
@@ -39,8 +35,6 @@ function tick(): void {
   if (resolvedPaths && resolvedPaths.size > 0) {
     applyResolvedPaths(vehicles, resolvedPaths);
   }
-
-  simUser = tickUser(simUser, DEFAULT_CONFIG, delta);
 }
 
 /** One-time road-snapping — starts once, result cached in resolvedPaths */
@@ -76,15 +70,8 @@ interface VehicleSnapshot {
   type: "jutc" | "robot_taxi";
 }
 
-interface UserSnapshot {
-  enabled: boolean;
-  lat: number;
-  lng: number;
-}
-
 interface SimFrame {
   ts: number;
-  user: UserSnapshot;
   vehicles: VehicleSnapshot[];
 }
 
@@ -102,11 +89,6 @@ function buildFrame(): SimFrame {
       capacity: v.capacity,
       avgCost: v.avgCost,
     })),
-    user: {
-      lat: simUser?.lat ?? 0,
-      lng: simUser?.lng ?? 0,
-      enabled: simUser?.enabled ?? false,
-    },
   };
 }
 

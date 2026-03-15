@@ -2,10 +2,9 @@
 
 import { BUS_STOPS } from "@One-and-Move/db/data/bus-stops";
 import { TAXI_STANDS } from "@One-and-Move/db/data/taxi-stands";
-import { Bus, Car, Navigation } from "lucide-react";
+import { Bus, Car, MapPin, Navigation } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { InterpolatedUser } from "@/lib/use-vehicle-stream";
 import { useVehicleStream } from "@/lib/use-vehicle-stream";
 
 /* ── Types ─────────────────────────────────────── */
@@ -15,12 +14,31 @@ interface LatLng {
 	lng: number;
 }
 
+interface RouteLeg {
+	geometry: LatLng[];
+	mode: "walk" | "jutc" | "taxi";
+}
+
+interface ActiveTrip {
+	legs: Array<{
+		mode: "walk" | "jutc" | "taxi";
+		vehicleName: string;
+		from: string;
+		to: string;
+		geometry: LatLng[];
+	}>;
+	currentLegIndex: number;
+}
+
 interface WebMapProps {
+	activeTrip?: ActiveTrip | null;
 	darkMode?: boolean;
 	flyTo?: LatLng | null;
 	fromMarker?: LatLng | null;
+	routeLegs?: RouteLeg[];
 	routePoints?: LatLng[];
 	toMarker?: LatLng | null;
+	userLocation?: LatLng | null;
 }
 
 interface Vehicle {
@@ -131,17 +149,21 @@ function MapLibreInner({
 	fromMarker,
 	toMarker,
 	routePoints,
+	routeLegs,
 	vehicles,
 	flyTo,
 	darkMode = false,
-	simUser,
+	userLocation,
+	activeTrip,
 }: {
+	activeTrip?: ActiveTrip | null;
 	darkMode?: boolean;
 	flyTo?: LatLng | null;
 	fromMarker?: LatLng | null;
 	toMarker?: LatLng | null;
+	routeLegs?: RouteLeg[];
 	routePoints?: LatLng[];
-	simUser?: InterpolatedUser | null;
+	userLocation?: LatLng | null;
 	vehicles: Vehicle[];
 }) {
 	// react-map-gl v8 exports MapLibre-flavoured components from this sub-path
@@ -297,8 +319,28 @@ function MapLibreInner({
 		[]
 	);
 
-	// Build GeoJSON for the route polyline
+	// Build GeoJSON for the route polyline — per-leg colored features
 	const routeGeoJson = useMemo(() => {
+		// If we have per-leg data, build one feature per leg with mode info
+		if (routeLegs && routeLegs.length > 0) {
+			const features = routeLegs
+				.filter((leg) => leg.geometry && leg.geometry.length >= 2)
+				.map((leg, idx) => ({
+					type: "Feature" as const,
+					properties: { mode: leg.mode, index: idx },
+					geometry: {
+						type: "LineString" as const,
+						coordinates: leg.geometry.map((p) => [p.lng, p.lat]),
+					},
+				}));
+
+			return {
+				type: "FeatureCollection" as const,
+				features,
+			};
+		}
+
+		// Fallback: single polyline from routePoints
 		let coords: [number, number][] = [];
 		if (routePoints && routePoints.length >= 2) {
 			coords = routePoints.map((p) => [p.lng, p.lat]);
@@ -314,7 +356,7 @@ function MapLibreInner({
 				? [
 						{
 							type: "Feature" as const,
-							properties: {},
+							properties: { mode: "jutc" },
 							geometry: {
 								type: "LineString" as const,
 								coordinates: coords,
@@ -327,7 +369,7 @@ function MapLibreInner({
 			type: "FeatureCollection" as const,
 			features,
 		};
-	}, [fromMarker, toMarker, routePoints]);
+	}, [fromMarker, toMarker, routePoints, routeLegs]);
 
 	const tileUrl = darkMode ? DARK_TILE_URL : LIGHT_TILE_URL;
 
@@ -542,7 +584,7 @@ function MapLibreInner({
 		>
 			<NavigationControl position="bottom-right" />
 
-			{/* Route polyline */}
+			{/* Route polyline — color-coded by transit mode */}
 			<Source data={routeGeoJson} id="route" type="geojson">
 				<Layer
 					id="route-casing"
@@ -554,11 +596,38 @@ function MapLibreInner({
 					}}
 					type="line"
 				/>
+				{/* Walk legs — gray dashed */}
 				<Layer
-					id="route-line"
+					filter={["==", ["get", "mode"], "walk"]}
+					id="route-walk"
+					layout={{ "line-cap": "round", "line-join": "round" }}
+					paint={{
+						"line-color": "#9ca3af",
+						"line-width": 4,
+						"line-opacity": 0.9,
+						"line-dasharray": [2, 2],
+					}}
+					type="line"
+				/>
+				{/* Bus legs — blue */}
+				<Layer
+					filter={["==", ["get", "mode"], "jutc"]}
+					id="route-bus"
 					layout={{ "line-cap": "round", "line-join": "round" }}
 					paint={{
 						"line-color": "#3b82f6",
+						"line-width": 4,
+						"line-opacity": 0.9,
+					}}
+					type="line"
+				/>
+				{/* Taxi legs — amber */}
+				<Layer
+					filter={["==", ["get", "mode"], "taxi"]}
+					id="route-taxi"
+					layout={{ "line-cap": "round", "line-join": "round" }}
+					paint={{
+						"line-color": "#f59e0b",
 						"line-width": 4,
 						"line-opacity": 0.9,
 					}}
@@ -870,10 +939,12 @@ function MapLibreInner({
 				</Marker>
 			)}
 
-			{/* Simulated user location dot */}
-			{simUser?.enabled && (
-				<Marker anchor="center" latitude={simUser.lat} longitude={simUser.lng}>
+			{/* Real GPS user location dot */}
+			{userLocation && (
+				<Marker anchor="center" latitude={userLocation.lat} longitude={userLocation.lng}>
 					<div className="relative flex items-center justify-center">
+						{/* Pulsing halo */}
+						<div className="absolute h-10 w-10 animate-ping rounded-full bg-blue-400/20" />
 						{/* Soft halo */}
 						<div className="absolute h-8 w-8 rounded-full bg-blue-400/25" />
 						{/* Blue dot */}
@@ -881,6 +952,52 @@ function MapLibreInner({
 					</div>
 				</Marker>
 			)}
+
+			{/* Highlighted next vehicle to board */}
+			{activeTrip && (() => {
+				const leg = activeTrip.legs[activeTrip.currentLegIndex];
+				if (!leg || leg.mode === "walk") return null;
+
+				// Find the pickup stop coordinates (first point of the leg geometry)
+				const pickupPoint = leg.geometry[0];
+
+				// Match a simulated vehicle by route name substring
+				const routeKeyword = leg.vehicleName.replace(/^JUTC\s*/, "").replace(/^Route Taxi\s*/, "").trim();
+				const matchedVehicle = vehicles.find((v) => {
+					const vRoute = v.route ?? "";
+					const vName = v.name ?? "";
+					if (leg.mode === "jutc" && v.type !== "jutc") return false;
+					if (leg.mode === "taxi" && v.type !== "robot_taxi") return false;
+					return vRoute.includes(routeKeyword) || vName.includes(routeKeyword);
+				});
+
+				return (
+					<>
+						{/* Pulsing ring around the matched vehicle */}
+						{matchedVehicle && (
+							<Marker anchor="center" latitude={matchedVehicle.lat} longitude={matchedVehicle.lng}>
+								<div className="relative flex items-center justify-center">
+									<div className="absolute h-14 w-14 animate-ping rounded-full border-2 border-green-400/60" />
+									<div className="absolute h-12 w-12 rounded-full border-3 border-green-500/80" />
+								</div>
+							</Marker>
+						)}
+
+						{/* "Board Here" marker at the pickup stop */}
+						{pickupPoint && (
+							<Marker anchor="bottom" latitude={pickupPoint.lat} longitude={pickupPoint.lng}>
+								<div className="flex flex-col items-center">
+									<div className="rounded-lg bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-lg">
+										<MapPin className="mr-0.5 inline -translate-y-px" size={10} />
+										Board Here
+									</div>
+									<div className="h-2 w-0.5 bg-green-500" />
+								</div>
+							</Marker>
+						)}
+					</>
+				);
+			})()}
 
 			{/* Vehicle info popup */}
 			{selectedVehicle && (
@@ -923,11 +1040,14 @@ export default function WebMap({
 	fromMarker,
 	toMarker,
 	routePoints,
+	routeLegs,
 	flyTo,
 	darkMode = false,
+	userLocation,
+	activeTrip,
 }: WebMapProps) {
 	// ── Server-streamed simulation via SSE + 60fps client interpolation
-	const { vehicles: streamVehicles, simUser } = useVehicleStream();
+	const { vehicles: streamVehicles } = useVehicleStream();
 
 	// Map streamed vehicles to the Vehicle shape the map expects
 	const vehicles = useMemo<Vehicle[]>(
@@ -949,12 +1069,14 @@ export default function WebMap({
 	return (
 		<div className="absolute inset-0 overflow-hidden">
 			<MapLibreMap
+				activeTrip={activeTrip}
 				darkMode={darkMode}
 				flyTo={flyTo}
 				fromMarker={fromMarker}
+				routeLegs={routeLegs}
 				routePoints={routePoints}
-				simUser={simUser}
 				toMarker={toMarker}
+				userLocation={userLocation}
 				vehicles={vehicles}
 			/>
 

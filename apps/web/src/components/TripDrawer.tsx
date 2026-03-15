@@ -7,10 +7,14 @@ import {
 	ArrowLeft,
 	Bus,
 	Car,
+	ChevronRight,
+	CircleStop,
 	Clock,
 	DollarSign,
+	Footprints,
 	MapPin,
 	Navigation,
+	Play,
 	Radio,
 	Route,
 	Search,
@@ -39,9 +43,11 @@ export interface TripLeg {
 	cost: number;
 	duration: number; // minutes
 	from: string;
+	geometry: LatLng[];
 	legNumber: number;
+	mode: "walk" | "jutc" | "taxi";
 	to: string;
-	type: "jutc" | "robot_taxi";
+	type: "walk" | "jutc" | "robot_taxi";
 	vehicleName: string;
 }
 
@@ -53,69 +59,45 @@ export interface TripRoute {
 }
 
 interface TripDrawerProps {
+	activeTrip?: { legs: TripLeg[]; currentLegIndex: number } | null;
 	initialFrom?: LocationSuggestion | null;
 	initialTo?: LocationSuggestion | null;
+	onCancelTrip?: () => void;
 	onFromSelect?: (location: LocationSuggestion | null) => void;
 	onRouteFound?: (route: TripRoute | null) => void;
+	onStartTrip?: (route: TripRoute) => void;
 	onToSelect?: (location: LocationSuggestion | null) => void;
 }
 
-/* ── Mock route builder (until real routing API is integrated) ─── */
+/* ── Route fetcher (calls real transit planner API) ─── */
 
-function getMockRoute(
+async function fetchRoutes(
 	from: LocationSuggestion,
 	to: LocationSuggestion
-): TripRoute {
-	const distance = Math.sqrt(
-		(from.coords.lat - to.coords.lat) ** 2 +
-			(from.coords.lng - to.coords.lng) ** 2
-	);
-	const needsMultiLeg = distance > 0.03;
+): Promise<TripRoute[]> {
+	const result = await client.routes.getBestRoute({
+		originLat: from.coords.lat,
+		originLng: from.coords.lng,
+		destinationLat: to.coords.lat,
+		destinationLng: to.coords.lng,
+	});
 
-	if (needsMultiLeg) {
-		return {
-			destination: to.name,
-			legs: [
-				{
-					legNumber: 1,
-					from: from.name,
-					to: "Half Way Tree",
-					type: "jutc",
-					vehicleName: "JUTC Bus 32",
-					cost: 100,
-					duration: 15,
-				},
-				{
-					legNumber: 2,
-					from: "Half Way Tree",
-					to: to.name,
-					type: "robot_taxi",
-					vehicleName: "Robot Taxi B3",
-					cost: 950,
-					duration: 12,
-				},
-			],
-			totalCost: 1050,
-			totalDuration: 27,
-		};
-	}
-
-	return {
+	return result.map((r) => ({
 		destination: to.name,
-		legs: [
-			{
-				legNumber: 1,
-				from: from.name,
-				to: to.name,
-				type: "robot_taxi",
-				vehicleName: "Robot Taxi A1",
-				cost: 800,
-				duration: 8,
-			},
-		],
-		totalCost: 800,
-		totalDuration: 8,
-	};
+		legs: r.legs.map((leg) => ({
+			legNumber: leg.legNumber,
+			from: leg.from,
+			to: leg.to,
+			mode: leg.mode as "walk" | "jutc" | "taxi",
+			type: leg.mode === "taxi" ? "robot_taxi" as const : leg.mode as "walk" | "jutc",
+			vehicleName: leg.vehicleName,
+			cost: leg.cost,
+			duration: leg.duration,
+			geometry: leg.geometry,
+		})),
+		totalCost: r.totalCost,
+		totalDuration: r.totalDuration,
+	}));
 }
 
 /* ── Live suggestion list (LocationIQ via server-side proxy) ────── */
@@ -199,10 +181,12 @@ function RouteResultsPanel({
 	route,
 	onBack,
 	onClose,
+	onStartTrip,
 }: {
 	route: TripRoute;
 	onBack: () => void;
 	onClose: () => void;
+	onStartTrip?: () => void;
 }) {
 	return (
 		<div className="flex h-full flex-col">
@@ -239,23 +223,24 @@ function RouteResultsPanel({
 			<div className="flex-1 overflow-y-auto px-4 py-3">
 				<div className="space-y-0">
 					{route.legs.map((leg, index) => {
-						const isBus = leg.type === "jutc";
+						const mode = leg.mode ?? (leg.type === "jutc" ? "jutc" : "taxi");
+						const isBus = mode === "jutc";
+						const isTaxi = mode === "taxi";
+						const isWalk = mode === "walk";
 						const isLast = index === route.legs.length - 1;
+
+						const iconBg = isBus ? "#10b981" : isTaxi ? "#f59e0b" : "#9ca3af";
+						const LegIcon = isBus ? Bus : isTaxi ? Car : Footprints;
+
 						return (
 							<div className="relative flex gap-3" key={leg.legNumber}>
 								{/* Timeline */}
 								<div className="flex flex-col items-center">
 									<div
 										className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm"
-										style={{
-											backgroundColor: isBus ? "#10b981" : "#6b7280",
-										}}
+										style={{ backgroundColor: iconBg }}
 									>
-										{isBus ? (
-											<Bus color="white" size={14} />
-										) : (
-											<Car color="white" size={14} />
-										)}
+										<LegIcon color="white" size={14} />
 									</div>
 									{!isLast && (
 										<div className="my-1 w-0.5 flex-1 rounded-full bg-gray-200 dark:bg-neutral-700" />
@@ -274,7 +259,7 @@ function RouteResultsPanel({
 											</p>
 										</div>
 										<span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700 text-xs dark:bg-neutral-800 dark:text-neutral-300">
-											JMD ${leg.cost.toLocaleString()}
+											{isWalk ? "Free" : `JMD $${leg.cost.toLocaleString()}`}
 										</span>
 									</div>
 									<p className="mt-0.5 text-gray-500 text-xs dark:text-neutral-400">
@@ -324,10 +309,144 @@ function RouteResultsPanel({
 							</span>
 						</div>
 					</div>
-					<span className="rounded-full bg-green-100 px-2.5 py-1 font-medium text-green-700 text-xs dark:bg-green-900/40 dark:text-green-400">
-						Best Route
-					</span>
 				</div>
+				{onStartTrip && (
+					<Button
+						className="mt-2 h-11 w-full rounded-xl bg-green-600 text-sm font-semibold text-white shadow-md shadow-green-600/25 transition-all hover:bg-green-700 hover:shadow-lg"
+						onClick={onStartTrip}
+						type="button"
+					>
+						<Play size={15} />
+						Start Trip
+					</Button>
+				)}
+			</div>
+		</div>
+	);
+}
+
+/* ── Navigating panel ──────────────────────────── */
+
+function NavigatingPanel({
+	activeTrip,
+	route,
+	onCancel,
+}: {
+	activeTrip: { legs: TripLeg[]; currentLegIndex: number };
+	route: TripRoute;
+	onCancel: () => void;
+}) {
+	const currentLeg = activeTrip.legs[activeTrip.currentLegIndex];
+	if (!currentLeg) return null;
+
+	const mode = currentLeg.mode;
+	const isBus = mode === "jutc";
+	const isTaxi = mode === "taxi";
+	const isWalk = mode === "walk";
+
+	const iconBg = isBus ? "#10b981" : isTaxi ? "#f59e0b" : "#3b82f6";
+	const LegIcon = isBus ? Bus : isTaxi ? Car : Footprints;
+
+	// Remaining legs summary
+	const remainingLegs = activeTrip.legs.slice(activeTrip.currentLegIndex + 1);
+	const remainingDuration = remainingLegs.reduce((s, l) => s + l.duration, 0) + currentLeg.duration;
+
+	return (
+		<div className="flex h-full flex-col">
+			{/* Header */}
+			<div className="flex items-center gap-3 border-gray-100 border-b px-4 py-3 dark:border-neutral-700">
+				<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm" style={{ backgroundColor: iconBg }}>
+					<LegIcon color="white" size={14} />
+				</div>
+				<div className="min-w-0 flex-1">
+					<p className="font-semibold text-gray-900 text-sm dark:text-neutral-100">
+						{isWalk ? "Walk" : currentLeg.vehicleName}
+					</p>
+					<p className="text-gray-500 text-xs dark:text-neutral-400">
+						{currentLeg.from} → {currentLeg.to}
+					</p>
+				</div>
+				<span className="shrink-0 rounded-full bg-blue-100 px-2.5 py-1 font-mono font-semibold text-blue-700 text-xs dark:bg-blue-900/40 dark:text-blue-400">
+					Leg {activeTrip.currentLegIndex + 1}/{activeTrip.legs.length}
+				</span>
+			</div>
+
+			{/* Current leg detail */}
+			<div className="flex-1 overflow-y-auto px-4 py-3">
+				<div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 dark:border-neutral-700 dark:bg-neutral-800/50">
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-2">
+							<Clock className="text-gray-400 dark:text-neutral-500" size={14} />
+							<span className="font-medium text-gray-700 text-sm dark:text-neutral-300">
+								~{currentLeg.duration} min
+							</span>
+						</div>
+						{!isWalk && (
+							<span className="rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-600 text-xs dark:bg-neutral-700 dark:text-neutral-400">
+								{isWalk ? "Free" : `JMD $${currentLeg.cost.toLocaleString()}`}
+							</span>
+						)}
+					</div>
+					{!isWalk && (
+						<p className="mt-2 text-gray-500 text-xs dark:text-neutral-400">
+							{isBus ? "Board the bus at" : "Take the taxi at"} <span className="font-medium text-gray-700 dark:text-neutral-300">{currentLeg.from}</span>
+						</p>
+					)}
+					{isWalk && (
+						<p className="mt-2 text-gray-500 text-xs dark:text-neutral-400">
+							Walk to <span className="font-medium text-gray-700 dark:text-neutral-300">{currentLeg.to}</span>
+						</p>
+					)}
+				</div>
+
+				{/* Upcoming legs preview */}
+				{remainingLegs.length > 0 && (
+					<div className="mt-3">
+						<p className="mb-2 font-medium text-gray-500 text-xs dark:text-neutral-400">
+							Up next
+						</p>
+						<div className="space-y-1.5">
+							{remainingLegs.map((leg) => {
+								const NextIcon = leg.mode === "jutc" ? Bus : leg.mode === "taxi" ? Car : Footprints;
+								return (
+									<div className="flex items-center gap-2 rounded-lg bg-gray-50 px-2.5 py-1.5 dark:bg-neutral-800" key={leg.legNumber}>
+										<NextIcon className="text-gray-400 dark:text-neutral-500" size={12} />
+										<span className="flex-1 truncate text-gray-600 text-xs dark:text-neutral-400">
+											{leg.vehicleName} → {leg.to}
+										</span>
+										<ChevronRight className="text-gray-300 dark:text-neutral-600" size={12} />
+									</div>
+								);
+							})}
+						</div>
+					</div>
+				)}
+			</div>
+
+			{/* Footer */}
+			<div className="border-gray-100 border-t px-4 py-3 dark:border-neutral-700">
+				<div className="mb-2 flex items-center justify-between">
+					<div className="flex items-center gap-1.5">
+						<Clock className="text-gray-400 dark:text-neutral-500" size={14} />
+						<span className="font-semibold text-gray-900 text-sm dark:text-neutral-100">
+							~{remainingDuration} min remaining
+						</span>
+					</div>
+					<div className="flex items-center gap-1.5">
+						<DollarSign className="text-gray-400 dark:text-neutral-500" size={14} />
+						<span className="font-semibold text-gray-900 text-sm dark:text-neutral-100">
+							JMD ${route.totalCost.toLocaleString()}
+						</span>
+					</div>
+				</div>
+				<Button
+					className="h-10 w-full rounded-xl bg-red-500 text-sm font-semibold text-white shadow-md shadow-red-500/25 transition-all hover:bg-red-600 hover:shadow-lg"
+					onClick={onCancel}
+					type="button"
+				>
+					<CircleStop size={14} />
+					Cancel Trip
+				</Button>
 			</div>
 		</div>
 	);
@@ -335,7 +454,7 @@ function RouteResultsPanel({
 
 /* ── Main drawer ───────────────────────────────── */
 
-type DrawerView = "search" | "results" | "boarding" | "tracking";
+type DrawerView = "search" | "results" | "boarding" | "tracking" | "navigating";
 
 function getSlideClass(
 	currentView: DrawerView,
@@ -345,7 +464,7 @@ function getSlideClass(
 	if (currentView === targetView) {
 		return "translate-x-0";
 	}
-	const viewOrder: DrawerView[] = ["search", "results", "boarding", "tracking"];
+	const viewOrder: DrawerView[] = ["search", "results", "navigating", "boarding", "tracking"];
 	const currentIdx = viewOrder.indexOf(currentView);
 	const targetIdx = viewOrder.indexOf(targetView);
 
@@ -356,11 +475,14 @@ function getSlideClass(
 }
 
 export default function TripDrawer({
+	activeTrip,
 	initialFrom,
 	initialTo,
+	onCancelTrip,
 	onFromSelect,
 	onToSelect,
 	onRouteFound,
+	onStartTrip,
 }: TripDrawerProps) {
 	const [open, setOpen] = useState(false);
 	const [view, setView] = useState<DrawerView>("search");
@@ -441,22 +563,22 @@ export default function TripDrawer({
 		[onToSelect]
 	);
 
-	const handleFindRoute = useCallback(() => {
-		if (!selectedFrom) {
-			return;
-		}
-		if (!selectedTo) {
-			return;
-		}
+	const handleFindRoute = useCallback(async () => {
+		if (!selectedFrom || !selectedTo) return;
+
 		setIsSearching(true);
-		setTimeout(() => {
-			const mockRoute = getMockRoute(selectedFrom, selectedTo);
-			setRoute(mockRoute);
-			onRouteFound?.(mockRoute);
-			setIsSearching(false);
+		try {
+			const routes = await fetchRoutes(selectedFrom, selectedTo);
+			const best = routes[0] ?? null;
+			setRoute(best);
+			onRouteFound?.(best);
 			setSlideDirection("left");
 			setView("results");
-		}, 800);
+		} catch {
+			// Fallback — show error or stay on search
+		} finally {
+			setIsSearching(false);
+		}
 	}, [selectedFrom, selectedTo, onRouteFound]);
 
 	const handleBack = useCallback(() => {
@@ -465,6 +587,19 @@ export default function TripDrawer({
 		setRoute(null);
 		onRouteFound?.(null);
 	}, [onRouteFound]);
+
+	const handleStartTripNav = useCallback(() => {
+		if (!route) return;
+		onStartTrip?.(route);
+		setSlideDirection("left");
+		setView("navigating");
+	}, [route, onStartTrip]);
+
+	const handleCancelTripNav = useCallback(() => {
+		onCancelTrip?.();
+		setSlideDirection("right");
+		setView("results");
+	}, [onCancelTrip]);
 
 	const handleClose = useCallback(() => {
 		setOpen(false);
@@ -630,8 +765,8 @@ export default function TripDrawer({
 	return (
 		<Drawer.Root
 			onOpenChange={(newOpen) => {
-				// Prevent closing while actively tracking
-				if (!newOpen && view === "tracking") {
+				// Prevent closing while actively tracking or navigating
+				if (!newOpen && (view === "tracking" || view === "navigating")) {
 					return;
 				}
 				setOpen(newOpen);
@@ -675,9 +810,11 @@ export default function TripDrawer({
 						height:
 							view === "tracking"
 								? "100px"
-								: minimized && view === "search"
-									? "8em"
-									: "56vh",
+								: view === "navigating"
+									? "56vh"
+									: minimized && view === "search"
+										? "8em"
+										: "56vh",
 					}}
 				>
 					{/* Drag handle */}
@@ -908,6 +1045,20 @@ export default function TripDrawer({
 								<RouteResultsPanel
 									onBack={handleBack}
 									onClose={handleClose}
+									onStartTrip={handleStartTripNav}
+									route={route}
+								/>
+							)}
+						</div>
+
+						{/* ── Navigating panel ──────────────── */}
+						<div
+							className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${getSlideClass(view, "navigating", slideDirection)}`}
+						>
+							{activeTrip && route && (
+								<NavigatingPanel
+									activeTrip={activeTrip}
+									onCancel={handleCancelTripNav}
 									route={route}
 								/>
 							)}

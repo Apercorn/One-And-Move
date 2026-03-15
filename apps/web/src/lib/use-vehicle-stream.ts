@@ -16,15 +16,8 @@ interface VehicleSnapshot {
   type: "jutc" | "robot_taxi";
 }
 
-interface UserSnapshot {
-  enabled: boolean;
-  lat: number;
-  lng: number;
-}
-
 interface SimFrame {
   ts: number;
-  user: UserSnapshot;
   vehicles: VehicleSnapshot[];
 }
 
@@ -40,12 +33,6 @@ export interface InterpolatedVehicle {
   name: string;
   route: string;
   type: "jutc" | "robot_taxi";
-}
-
-export interface InterpolatedUser {
-  enabled: boolean;
-  lat: number;
-  lng: number;
 }
 
 /* ─── Lerp helpers ──────────────────────────────── */
@@ -72,7 +59,6 @@ function lerpAngle(a: number, b: number, t: number): number {
  */
 export function useVehicleStream(): {
   vehicles: InterpolatedVehicle[];
-  simUser: InterpolatedUser;
   connected: boolean;
 } {
   // Latest two server frames (for interpolation)
@@ -82,11 +68,6 @@ export function useVehicleStream(): {
 
   // Output state — updated at 60 fps
   const [vehicles, setVehicles] = useState<InterpolatedVehicle[]>([]);
-  const [simUser, setSimUser] = useState<InterpolatedUser>({
-    lat: 0,
-    lng: 0,
-    enabled: false,
-  });
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -161,12 +142,6 @@ export function useVehicleStream(): {
             }
           );
           setVehicles(interpolated);
-
-          setSimUser({
-            lat: lerp(prev.user.lat, curr.user.lat, t),
-            lng: lerp(prev.user.lng, curr.user.lng, t),
-            enabled: curr.user.enabled,
-          });
         } else {
           // No prev frame yet or vehicle count changed — snap to curr
           setVehicles(
@@ -182,11 +157,6 @@ export function useVehicleStream(): {
               avgCost: v.avgCost,
             }))
           );
-          setSimUser({
-            lat: curr.user.lat,
-            lng: curr.user.lng,
-            enabled: curr.user.enabled,
-          });
         }
       }
 
@@ -202,5 +172,5 @@ export function useVehicleStream(): {
     };
   }, []);
 
-  return { vehicles, simUser, connected };
+  return { vehicles, connected };
 }
