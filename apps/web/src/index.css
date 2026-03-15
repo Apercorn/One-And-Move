@@ -1,2 +1,8 @@
 @import "@One-and-Move/ui/globals.css";
 @import "maplibre-gl/dist/maplibre-gl.css";
+
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: 0.4s;
+	animation-timing-function: ease;
+}
