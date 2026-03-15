@@ -7,6 +7,7 @@ import {
 	ArrowLeft,
 	Bus,
 	Car,
+	ChevronDown,
 	ChevronRight,
 	CircleStop,
 	Clock,
@@ -554,6 +555,7 @@ export default function TripDrawer({
 	const [liveVehicleId, setLiveVehicleId] = useState<string | null>(null);
 	const [trackingElapsed, setTrackingElapsed] = useState(0);
 	const [lastPosition, setLastPosition] = useState<LatLng | null>(null);
+	const [trackingMinimized, setTrackingMinimized] = useState(false);
 	const watchIdRef = useRef<number | null>(null);
 	const trackingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -579,6 +581,13 @@ export default function TripDrawer({
 			}
 		};
 	}, []);
+
+	// When drawer (re-)opens with an active trip, jump straight to navigating view
+	useEffect(() => {
+		if (open && activeTrip) {
+			setView("navigating");
+		}
+	}, [open, activeTrip]);
 
 	const handleFromSelect = useCallback(
 		(suggestion: LocationSuggestion) => {
@@ -781,6 +790,7 @@ export default function TripDrawer({
 		setLiveVehicleId(null);
 		setTrackingElapsed(0);
 		setLastPosition(null);
+		setTrackingMinimized(false);
 		setLicensePlate("");
 		setRouteNumber("");
 		setSlideDirection("right");
@@ -804,8 +814,8 @@ export default function TripDrawer({
 	return (
 		<Drawer.Root
 			onOpenChange={(newOpen) => {
-				// Prevent closing while actively tracking or navigating
-				if (!newOpen && (view === "tracking" || view === "navigating")) {
+				// Prevent closing while actively broadcasting vehicle location
+				if (!newOpen && view === "tracking") {
 					return;
 				}
 				setOpen(newOpen);
@@ -816,15 +826,25 @@ export default function TripDrawer({
 			{/* Floating trigger pill */}
 			<Drawer.Trigger asChild>
 				<button
-					aria-label="Open trip planner"
-					className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-white/60 bg-white/90 px-5 py-3 text-sm font-semibold text-gray-900 shadow-xl backdrop-blur-xl transition-all hover:bg-white hover:shadow-2xl active:scale-95 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-100 dark:hover:bg-neutral-800"
+					aria-label={activeTrip ? "View active trip" : "Open trip planner"}
+					className={`absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl border px-5 py-3 text-sm font-semibold shadow-xl backdrop-blur-xl transition-all active:scale-95 ${
+						activeTrip
+							? "border-green-400/60 bg-green-500 text-white hover:bg-green-600 hover:shadow-2xl dark:border-green-500/60 dark:bg-green-600 dark:hover:bg-green-700"
+							: "border-white/60 bg-white/90 text-gray-900 hover:bg-white hover:shadow-2xl dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-100 dark:hover:bg-neutral-800"
+					}`}
 					style={{ zIndex: 1002 }}
 					type="button"
 				>
-					<div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500">
+					<div
+						className={`flex h-7 w-7 items-center justify-center rounded-full ${
+							activeTrip ? "bg-white/25" : "bg-blue-500"
+						}`}
+					>
 						<Navigation color="white" size={13} />
 					</div>
-					Plan a Trip
+					{activeTrip
+						? `Active Trip · Leg ${activeTrip.currentLegIndex + 1}/${activeTrip.legs.length}`
+						: "Plan a Trip"}
 				</button>
 			</Drawer.Trigger>
 
@@ -848,7 +868,9 @@ export default function TripDrawer({
 						zIndex: 1011,
 						height:
 							view === "tracking"
-								? "100px"
+								? trackingMinimized
+									? "20px"
+									: "80px"
 								: view === "navigating"
 									? "56vh"
 									: minimized && view === "search"
@@ -856,8 +878,15 @@ export default function TripDrawer({
 										: "56vh",
 					}}
 				>
-					{/* Drag handle */}
-					<div className="flex justify-center pt-3 pb-1">
+					{/* Drag handle — acts as expand toggle while tracking */}
+					<div
+						className={`flex justify-center pt-3 pb-1 ${
+							view === "tracking" ? "cursor-pointer" : ""
+						}`}
+						onClick={() => {
+							if (view === "tracking") setTrackingMinimized((v) => !v);
+						}}
+					>
 						<div className="h-1.5 w-12 rounded-full bg-gray-300 dark:bg-neutral-600" />
 					</div>
 
@@ -1248,7 +1277,11 @@ export default function TripDrawer({
 						<div
 							className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${getSlideClass(view, "tracking", slideDirection)}`}
 						>
-							<div className="flex items-center gap-3 px-4 py-3">
+							<div
+								className={`flex items-center gap-3 px-4 py-2 transition-opacity duration-200 ${
+									trackingMinimized ? "pointer-events-none opacity-0" : "opacity-100"
+								}`}
+							>
 								{/* Live dot */}
 								<div className="relative flex shrink-0">
 									<span className="inline-flex h-3 w-3 rounded-full bg-green-500 shadow-sm shadow-green-500/50" />
@@ -1272,6 +1305,16 @@ export default function TripDrawer({
 								<p className="shrink-0 font-mono text-lg font-bold text-green-600 dark:text-green-400">
 									{formatElapsed(trackingElapsed)}
 								</p>
+
+								{/* Minimize button */}
+								<button
+									aria-label="Minimize tracking bar"
+									className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 dark:text-neutral-500 dark:hover:bg-neutral-800"
+									onClick={() => setTrackingMinimized(true)}
+									type="button"
+								>
+									<ChevronDown size={16} />
+								</button>
 
 								{/* Stop button */}
 								<Button

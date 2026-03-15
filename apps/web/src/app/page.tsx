@@ -3,13 +3,33 @@
 import { ArrowRight, Car, Clock, Map as MapIcon } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
+import { useState } from "react";
 import HeroRouteSearch from "@/components/hero-route-search";
 import WebMap from "@/components/Map";
 import Navigation from "@/components/navigation";
+import type { LocationSuggestion } from "@/components/TripDrawer";
+
+interface LatLng {
+	lat: number;
+	lng: number;
+}
 
 export default function Home() {
 	const { resolvedTheme } = useTheme();
 	const isDark = resolvedTheme === "dark";
+	const [heroFrom, setHeroFrom] = useState<LatLng | null>(null);
+	const [heroTo, setHeroTo] = useState<LatLng | null>(null);
+	const [flyTo, setFlyTo] = useState<LatLng | null>(null);
+
+	const handleFromSelect = (s: LocationSuggestion) => {
+		setHeroFrom(s.coords);
+		setFlyTo(s.coords);
+	};
+
+	const handleToSelect = (s: LocationSuggestion) => {
+		setHeroTo(s.coords);
+		setFlyTo(s.coords);
+	};
 	return (
 		<div className="flex-1 bg-white pb-20 font-sans text-blue-600 transition-colors duration-500 selection:bg-blue-600 selection:text-white dark:bg-transparent dark:text-blue-300">
 			{/* Navigation */}
@@ -77,11 +97,20 @@ export default function Home() {
 				{/* Right side Visual (Interactive Map) */}
 				<div className="mt-12 flex w-full flex-col items-center justify-center gap-6 lg:mt-0 lg:h-full">
 					<div className="relative flex aspect-square w-full max-w-md overflow-hidden rounded-2xl border border-blue-200 bg-zinc-100 shadow-xl dark:border-slate-800 dark:bg-slate-900">
-						<WebMap darkMode={isDark} key={String(isDark)} />
+						<WebMap
+							darkMode={isDark}
+							flyTo={flyTo}
+							fromMarker={heroFrom}
+							key={String(isDark)}
+							toMarker={heroTo}
+						/>
 					</div>
 
 					{/* Interactive Route Menu Strip */}
-					<HeroRouteSearch />
+					<HeroRouteSearch
+						onFromSelect={handleFromSelect}
+						onToSelect={handleToSelect}
+					/>
 				</div>
 			</main>
 
