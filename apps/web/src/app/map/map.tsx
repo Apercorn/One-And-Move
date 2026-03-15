@@ -1,8 +1,8 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import WebMap from "@/components/Map";
 import { MapNavBar } from "@/components/map-nav-bar";
 import type {
@@ -45,10 +45,16 @@ export default function TransitMap() {
 		};
 	}, [searchParams]);
 
-	const [fromMarker, setFromMarker] = useState<LatLng | null>(initialFrom?.coords ?? null);
-	const [toMarker, setToMarker] = useState<LatLng | null>(initialTo?.coords ?? null);
+	const [fromMarker, setFromMarker] = useState<LatLng | null>(
+		initialFrom?.coords ?? null
+	);
+	const [toMarker, setToMarker] = useState<LatLng | null>(
+		initialTo?.coords ?? null
+	);
 	const [routePoints, setRoutePoints] = useState<LatLng[]>([]);
-	const [flyTo, setFlyTo] = useState<LatLng | null>(initialFrom?.coords ?? initialTo?.coords ?? null);
+	const [flyTo, setFlyTo] = useState<LatLng | null>(
+		initialFrom?.coords ?? initialTo?.coords ?? null
+	);
 
 	const handleFromSelect = useCallback((loc: LocationSuggestion | null) => {
 		setFromMarker(loc ? loc.coords : null);

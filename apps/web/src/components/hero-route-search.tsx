@@ -84,7 +84,9 @@ export default function HeroRouteSearch() {
 
 	const [fromQuery, setFromQuery] = useState("");
 	const [toQuery, setToQuery] = useState("");
-	const [selectedFrom, setSelectedFrom] = useState<LocationSuggestion | null>(null);
+	const [selectedFrom, setSelectedFrom] = useState<LocationSuggestion | null>(
+		null
+	);
 	const [selectedTo, setSelectedTo] = useState<LocationSuggestion | null>(null);
 	const [showFromSuggestions, setShowFromSuggestions] = useState(false);
 	const [showToSuggestions, setShowToSuggestions] = useState(false);
@@ -135,7 +137,11 @@ export default function HeroRouteSearch() {
 		router.push(`/map${qs ? `?${qs}` : ""}` as any);
 	};
 
-	const canSubmit = selectedFrom !== null || selectedTo !== null || fromQuery.trim().length >= 2 || toQuery.trim().length >= 2;
+	const canSubmit =
+		selectedFrom !== null ||
+		selectedTo !== null ||
+		fromQuery.trim().length >= 2 ||
+		toQuery.trim().length >= 2;
 
 	return (
 		<div className="w-full max-w-md rounded-2xl border border-blue-200 bg-white p-6 shadow-xl transition-colors duration-500 dark:border-slate-800 dark:bg-[#111827]">

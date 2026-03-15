@@ -2,8 +2,8 @@
 
 import { ArrowRight, Car, Clock, Map as MapIcon } from "lucide-react";
 import Link from "next/link";
-import WebMap from "@/components/Map";
 import HeroRouteSearch from "@/components/hero-route-search";
+import WebMap from "@/components/Map";
 import Navigation from "@/components/navigation";
 
 export default function Home() {
@@ -16,13 +16,12 @@ export default function Home() {
 			<main className="mx-auto max-w-7xl items-center px-8 pt-16 lg:grid lg:grid-cols-2 lg:gap-16">
 				<div>
 					<h1 className="mb-6 font-bold text-5xl text-blue-900 leading-tight tracking-tight md:text-6xl">
-						Know the true
-            arrival time.
+						Know the true arrival time.
 					</h1>
 					<p className="mb-10 max-w-lg text-blue-800/80 text-lg leading-relaxed">
 						One and Move uses real-time location tracking to detect the exact
-						location of JUTC buses and private taxis, so you can commute securely
-						and safely.
+						location of JUTC buses and private taxis, so you can commute
+						securely and safely.
 					</p>
 
 					<div className="mb-16 flex flex-wrap items-center gap-4">

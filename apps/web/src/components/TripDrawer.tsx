@@ -374,7 +374,9 @@ export default function TripDrawer({
 	const [selectedFrom, setSelectedFrom] = useState<LocationSuggestion | null>(
 		initialFrom ?? null
 	);
-	const [selectedTo, setSelectedTo] = useState<LocationSuggestion | null>(initialTo ?? null);
+	const [selectedTo, setSelectedTo] = useState<LocationSuggestion | null>(
+		initialTo ?? null
+	);
 	const [showFromSuggestions, setShowFromSuggestions] = useState(false);
 	const [showToSuggestions, setShowToSuggestions] = useState(false);
 	const [isSearching, setIsSearching] = useState(false);
