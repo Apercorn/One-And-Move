@@ -2,6 +2,16 @@
 
 import { JUTC_ROUTES } from "@One-and-Move/db/data/jutc-routes";
 import { Button } from "@One-and-Move/ui/components/button";
+import {
+	Drawer,
+	DrawerClose,
+	DrawerContent,
+	DrawerDescription,
+	DrawerFooter,
+	DrawerHeader,
+	DrawerTitle,
+	DrawerTrigger,
+} from "@One-and-Move/ui/components/drawer";
 import { useQuery } from "@tanstack/react-query";
 import {
 	ArrowLeft,
@@ -23,7 +33,6 @@ import {
 	X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Drawer } from "vaul";
 import { client } from "@/utils/orpc";
 
 /* ── Types ─────────────────────────────────────── */
@@ -42,7 +51,7 @@ export interface LocationSuggestion {
 
 export interface TripLeg {
 	cost: number;
-	duration: number; // minutes
+	duration: number;
 	from: string;
 	geometry: LatLng[];
 	legNumber: number;
@@ -56,7 +65,7 @@ export interface TripRoute {
 	destination: string;
 	legs: TripLeg[];
 	totalCost: number;
-	totalDuration: number; // minutes
+	totalDuration: number;
 }
 
 interface TripDrawerProps {
@@ -70,7 +79,7 @@ interface TripDrawerProps {
 	onToSelect?: (location: LocationSuggestion | null) => void;
 }
 
-/* ── Route fetcher (calls real transit planner API) ─── */
+/* ── Route fetcher ─────────────────────────────── */
 
 async function fetchRoutes(
 	from: LocationSuggestion,
@@ -104,7 +113,7 @@ async function fetchRoutes(
 	}));
 }
 
-/* ── Live suggestion list (LocationIQ via server-side proxy) ────── */
+/* ── Suggestion list ───────────────────────────── */
 
 function SuggestionList({
 	query,
@@ -115,8 +124,8 @@ function SuggestionList({
 	onSelect: (s: LocationSuggestion) => void;
 	visible: boolean;
 }) {
-	// Debounce: only fire the query after the user pauses typing for 350ms
 	const [debouncedQuery, setDebouncedQuery] = useState(query);
+
 	useEffect(() => {
 		const id = setTimeout(() => setDebouncedQuery(query), 350);
 		return () => clearTimeout(id);
@@ -130,30 +139,26 @@ function SuggestionList({
 		placeholderData: (prev) => prev,
 	});
 
-	if (!visible || query.trim().length < 2) {
-		return null;
-	}
+	if (!visible || query.trim().length < 2) return null;
 
 	if (isFetching && suggestions.length === 0) {
 		return (
-			<div className="absolute top-full right-0 left-0 z-50 mt-1 rounded-xl border border-gray-100 bg-white/95 px-3 py-3 shadow-lg backdrop-blur-xl dark:border-neutral-700 dark:bg-neutral-900/95">
-				<div className="flex items-center gap-2 text-gray-400 text-xs dark:text-neutral-500">
-					<div className="h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-blue-500 dark:border-neutral-600 dark:border-t-blue-400" />
+			<div className="absolute top-full right-0 left-0 z-50 mt-1 rounded-xl border border-border bg-popover px-3 py-3 shadow-lg">
+				<div className="flex items-center gap-2 text-muted-foreground text-xs">
+					<div className="h-3 w-3 animate-spin rounded-full border border-border border-t-primary" />
 					Searching…
 				</div>
 			</div>
 		);
 	}
 
-	if (suggestions.length === 0) {
-		return null;
-	}
+	if (suggestions.length === 0) return null;
 
 	return (
-		<div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-100 bg-white/95 shadow-lg backdrop-blur-xl dark:border-neutral-700 dark:bg-neutral-900/95">
+		<div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
 			{suggestions.map((s: LocationSuggestion) => (
 				<button
-					className="flex w-full items-start gap-2.5 px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-neutral-800"
+					className="flex w-full items-start gap-2.5 px-3 py-2 text-left transition-colors hover:bg-muted"
 					key={s.id}
 					onMouseDown={(e) => {
 						e.preventDefault();
@@ -161,15 +166,12 @@ function SuggestionList({
 					}}
 					type="button"
 				>
-					<MapPin
-						className="mt-0.5 shrink-0 text-gray-400 dark:text-neutral-500"
-						size={14}
-					/>
+					<MapPin className="mt-0.5 shrink-0 text-muted-foreground" size={14} />
 					<div className="min-w-0">
-						<p className="truncate font-medium text-gray-900 text-sm dark:text-neutral-100">
+						<p className="truncate font-medium text-foreground text-sm">
 							{s.name}
 						</p>
-						<p className="truncate text-gray-500 text-xs dark:text-neutral-400">
+						<p className="truncate text-muted-foreground text-xs">
 							{s.address}
 						</p>
 					</div>
@@ -179,340 +181,25 @@ function SuggestionList({
 	);
 }
 
-/* ── Route results panel ───────────────────────── */
+/* ── Leg icon/color helpers ────────────────────── */
 
-function RouteResultsPanel({
-	route,
-	onBack,
-	onClose,
-	onStartTrip,
-}: {
-	route: TripRoute;
-	onBack: () => void;
-	onClose: () => void;
-	onStartTrip?: () => void;
-}) {
-	return (
-		<div className="flex h-full flex-col">
-			{/* Header */}
-			<div className="flex items-center gap-2 border-gray-100 border-b px-4 py-3 dark:border-neutral-700">
-				<button
-					aria-label="Go back"
-					className="rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
-					onClick={onBack}
-					type="button"
-				>
-					<ArrowLeft size={18} />
-				</button>
-				<div className="min-w-0 flex-1">
-					<h2 className="truncate font-semibold text-gray-900 dark:text-neutral-100">
-						Trip to {route.destination}
-					</h2>
-					<p className="text-gray-500 text-xs dark:text-neutral-400">
-						{route.legs.length} {route.legs.length === 1 ? "leg" : "legs"} •{" "}
-						Optimal route
-					</p>
-				</div>
-				<button
-					aria-label="Close"
-					className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
-					onClick={onClose}
-					type="button"
-				>
-					<X size={18} />
-				</button>
-			</div>
-
-			{/* Legs */}
-			<div className="flex-1 overflow-y-auto px-4 py-3">
-				<div className="space-y-0">
-					{route.legs.map((leg, index) => {
-						const mode = leg.mode ?? (leg.type === "jutc" ? "jutc" : "taxi");
-						const isBus = mode === "jutc";
-						const isTaxi = mode === "taxi";
-						const isWalk = mode === "walk";
-						const isLast = index === route.legs.length - 1;
-
-						const iconBg = isBus ? "#10b981" : isTaxi ? "#f59e0b" : "#9ca3af";
-						const LegIcon = isBus ? Bus : isTaxi ? Car : Footprints;
-
-						return (
-							<div className="relative flex gap-3" key={leg.legNumber}>
-								{/* Timeline */}
-								<div className="flex flex-col items-center">
-									<div
-										className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm"
-										style={{ backgroundColor: iconBg }}
-									>
-										<LegIcon color="white" size={14} />
-									</div>
-									{!isLast && (
-										<div className="my-1 w-0.5 flex-1 rounded-full bg-gray-200 dark:bg-neutral-700" />
-									)}
-								</div>
-
-								{/* Leg content */}
-								<div className={`min-w-0 flex-1 ${isLast ? "pb-0" : "pb-4"}`}>
-									<div className="flex items-start justify-between">
-										<div className="min-w-0">
-											<p className="font-medium text-gray-500 text-xs dark:text-neutral-400">
-												Leg {leg.legNumber}
-											</p>
-											<p className="truncate font-semibold text-gray-900 text-sm dark:text-neutral-100">
-												{leg.vehicleName}
-											</p>
-										</div>
-										<span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700 text-xs dark:bg-neutral-800 dark:text-neutral-300">
-											{isWalk ? "Free" : `JMD $${leg.cost.toLocaleString()}`}
-										</span>
-									</div>
-									<p className="mt-0.5 text-gray-500 text-xs dark:text-neutral-400">
-										{leg.from} → {leg.to}
-									</p>
-									<p className="mt-0.5 flex items-center gap-1 text-gray-400 text-xs dark:text-neutral-500">
-										<Clock size={10} />
-										{leg.duration} min
-									</p>
-								</div>
-							</div>
-						);
-					})}
-				</div>
-
-				{/* Destination marker */}
-				<div className="mt-3 flex items-center gap-3">
-					<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500 shadow-sm">
-						<MapPin color="white" size={14} />
-					</div>
-					<p className="font-medium text-gray-700 text-sm dark:text-neutral-300">
-						Arrive at {route.destination}
-					</p>
-				</div>
-			</div>
-
-			{/* Summary footer */}
-			<div className="border-gray-100 border-t px-4 py-3 dark:border-neutral-700">
-				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-4">
-						<div className="flex items-center gap-1.5">
-							<Clock
-								className="text-gray-400 dark:text-neutral-500"
-								size={14}
-							/>
-							<span className="font-semibold text-gray-900 text-sm dark:text-neutral-100">
-								{route.totalDuration} min
-							</span>
-						</div>
-						<div className="flex items-center gap-1.5">
-							<DollarSign
-								className="text-gray-400 dark:text-neutral-500"
-								size={14}
-							/>
-							<span className="font-semibold text-gray-900 text-sm dark:text-neutral-100">
-								JMD ${route.totalCost.toLocaleString()}
-							</span>
-						</div>
-					</div>
-				</div>
-				{onStartTrip && (
-					<Button
-						className="mt-2 h-11 w-full rounded-xl bg-green-600 text-sm font-semibold text-white shadow-md shadow-green-600/25 transition-all hover:bg-green-700 hover:shadow-lg"
-						onClick={onStartTrip}
-						type="button"
-					>
-						<Play size={15} />
-						Start Trip
-					</Button>
-				)}
-			</div>
-		</div>
-	);
+function getLegIcon(mode: string) {
+	if (mode === "jutc") return Bus;
+	if (mode === "taxi") return Car;
+	return Footprints;
 }
 
-/* ── Navigating panel ──────────────────────────── */
-
-function NavigatingPanel({
-	activeTrip,
-	route,
-	onCancel,
-}: {
-	activeTrip: { legs: TripLeg[]; currentLegIndex: number };
-	route: TripRoute;
-	onCancel: () => void;
-}) {
-	const currentLeg = activeTrip.legs[activeTrip.currentLegIndex];
-	if (!currentLeg) return null;
-
-	const mode = currentLeg.mode;
-	const isBus = mode === "jutc";
-	const isTaxi = mode === "taxi";
-	const isWalk = mode === "walk";
-
-	const iconBg = isBus ? "#10b981" : isTaxi ? "#f59e0b" : "#3b82f6";
-	const LegIcon = isBus ? Bus : isTaxi ? Car : Footprints;
-
-	// Remaining legs summary
-	const remainingLegs = activeTrip.legs.slice(activeTrip.currentLegIndex + 1);
-	const remainingDuration =
-		remainingLegs.reduce((s, l) => s + l.duration, 0) + currentLeg.duration;
-
-	return (
-		<div className="flex h-full flex-col">
-			{/* Header */}
-			<div className="flex items-center gap-3 border-gray-100 border-b px-4 py-3 dark:border-neutral-700">
-				<div
-					className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm"
-					style={{ backgroundColor: iconBg }}
-				>
-					<LegIcon color="white" size={14} />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="font-semibold text-gray-900 text-sm dark:text-neutral-100">
-						{isWalk ? "Walk" : currentLeg.vehicleName}
-					</p>
-					<p className="text-gray-500 text-xs dark:text-neutral-400">
-						{currentLeg.from} → {currentLeg.to}
-					</p>
-				</div>
-				<span className="shrink-0 rounded-full bg-blue-100 px-2.5 py-1 font-mono font-semibold text-blue-700 text-xs dark:bg-blue-900/40 dark:text-blue-400">
-					Leg {activeTrip.currentLegIndex + 1}/{activeTrip.legs.length}
-				</span>
-			</div>
-
-			{/* Current leg detail */}
-			<div className="flex-1 overflow-y-auto px-4 py-3">
-				<div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 dark:border-neutral-700 dark:bg-neutral-800/50">
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-2">
-							<Clock
-								className="text-gray-400 dark:text-neutral-500"
-								size={14}
-							/>
-							<span className="font-medium text-gray-700 text-sm dark:text-neutral-300">
-								~{currentLeg.duration} min
-							</span>
-						</div>
-						{!isWalk && (
-							<span className="rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-600 text-xs dark:bg-neutral-700 dark:text-neutral-400">
-								{isWalk ? "Free" : `JMD $${currentLeg.cost.toLocaleString()}`}
-							</span>
-						)}
-					</div>
-					{!isWalk && (
-						<p className="mt-2 text-gray-500 text-xs dark:text-neutral-400">
-							{isBus ? "Board the bus at" : "Take the taxi at"}{" "}
-							<span className="font-medium text-gray-700 dark:text-neutral-300">
-								{currentLeg.from}
-							</span>
-						</p>
-					)}
-					{isWalk && (
-						<p className="mt-2 text-gray-500 text-xs dark:text-neutral-400">
-							Walk to{" "}
-							<span className="font-medium text-gray-700 dark:text-neutral-300">
-								{currentLeg.to}
-							</span>
-						</p>
-					)}
-				</div>
-
-				{/* Upcoming legs preview */}
-				{remainingLegs.length > 0 && (
-					<div className="mt-3">
-						<p className="mb-2 font-medium text-gray-500 text-xs dark:text-neutral-400">
-							Up next
-						</p>
-						<div className="space-y-1.5">
-							{remainingLegs.map((leg) => {
-								const NextIcon =
-									leg.mode === "jutc"
-										? Bus
-										: leg.mode === "taxi"
-											? Car
-											: Footprints;
-								return (
-									<div
-										className="flex items-center gap-2 rounded-lg bg-gray-50 px-2.5 py-1.5 dark:bg-neutral-800"
-										key={leg.legNumber}
-									>
-										<NextIcon
-											className="text-gray-400 dark:text-neutral-500"
-											size={12}
-										/>
-										<span className="flex-1 truncate text-gray-600 text-xs dark:text-neutral-400">
-											{leg.vehicleName} → {leg.to}
-										</span>
-										<ChevronRight
-											className="text-gray-300 dark:text-neutral-600"
-											size={12}
-										/>
-									</div>
-								);
-							})}
-						</div>
-					</div>
-				)}
-			</div>
-
-			{/* Footer */}
-			<div className="border-gray-100 border-t px-4 py-3 dark:border-neutral-700">
-				<div className="mb-2 flex items-center justify-between">
-					<div className="flex items-center gap-1.5">
-						<Clock className="text-gray-400 dark:text-neutral-500" size={14} />
-						<span className="font-semibold text-gray-900 text-sm dark:text-neutral-100">
-							~{remainingDuration} min remaining
-						</span>
-					</div>
-					<div className="flex items-center gap-1.5">
-						<DollarSign
-							className="text-gray-400 dark:text-neutral-500"
-							size={14}
-						/>
-						<span className="font-semibold text-gray-900 text-sm dark:text-neutral-100">
-							JMD ${route.totalCost.toLocaleString()}
-						</span>
-					</div>
-				</div>
-				<Button
-					className="h-10 w-full rounded-xl bg-red-500 text-sm font-semibold text-white shadow-md shadow-red-500/25 transition-all hover:bg-red-600 hover:shadow-lg"
-					onClick={onCancel}
-					type="button"
-				>
-					<CircleStop size={14} />
-					Cancel Trip
-				</Button>
-			</div>
-		</div>
-	);
+function getLegColor(mode: string) {
+	if (mode === "jutc") return "bg-emerald-500";
+	if (mode === "taxi") return "bg-amber-500";
+	return "bg-muted-foreground";
 }
 
-/* ── Main drawer ───────────────────────────────── */
+/* ── Drawer view type ──────────────────────────── */
 
 type DrawerView = "search" | "results" | "boarding" | "tracking" | "navigating";
 
-function getSlideClass(
-	currentView: DrawerView,
-	targetView: DrawerView,
-	slideDirection: "left" | "right"
-): string {
-	if (currentView === targetView) {
-		return "translate-x-0";
-	}
-	const viewOrder: DrawerView[] = [
-		"search",
-		"results",
-		"navigating",
-		"boarding",
-		"tracking",
-	];
-	const currentIdx = viewOrder.indexOf(currentView);
-	const targetIdx = viewOrder.indexOf(targetView);
-
-	if (slideDirection === "left") {
-		return targetIdx < currentIdx ? "-translate-x-full" : "translate-x-full";
-	}
-	return targetIdx < currentIdx ? "translate-x-full" : "-translate-x-full";
-}
+/* ── Main component ────────────────────────────── */
 
 export default function TripDrawer({
 	activeTrip,
@@ -526,11 +213,8 @@ export default function TripDrawer({
 }: TripDrawerProps) {
 	const [open, setOpen] = useState(false);
 	const [view, setView] = useState<DrawerView>("search");
-	const [slideDirection, setSlideDirection] = useState<"left" | "right">(
-		"left"
-	);
 
-	// Search state
+	/* Search state */
 	const [fromQuery, setFromQuery] = useState(initialFrom?.name ?? "");
 	const [toQuery, setToQuery] = useState(initialTo?.name ?? "");
 	const [selectedFrom, setSelectedFrom] = useState<LocationSuggestion | null>(
@@ -543,15 +227,14 @@ export default function TripDrawer({
 	const [showToSuggestions, setShowToSuggestions] = useState(false);
 	const [isSearching, setIsSearching] = useState(false);
 	const [route, setRoute] = useState<TripRoute | null>(null);
-	const [minimized, setMinimized] = useState(false);
 
-	// Boarding state
+	/* Boarding state */
 	const [boardingType, setBoardingType] = useState<"jutc" | "taxi">("jutc");
 	const [licensePlate, setLicensePlate] = useState("");
 	const [routeNumber, setRouteNumber] = useState("");
 	const [isBoardingLoading, setIsBoardingLoading] = useState(false);
 
-	// Tracking state
+	/* Tracking state */
 	const [liveVehicleId, setLiveVehicleId] = useState<string | null>(null);
 	const [trackingElapsed, setTrackingElapsed] = useState(0);
 	const [lastPosition, setLastPosition] = useState<LatLng | null>(null);
@@ -561,6 +244,7 @@ export default function TripDrawer({
 
 	const toRef = useRef<HTMLInputElement>(null);
 
+	/* ── Global click to dismiss suggestions ───── */
 	useEffect(() => {
 		const handleClick = () => {
 			setShowFromSuggestions(false);
@@ -570,7 +254,7 @@ export default function TripDrawer({
 		return () => document.removeEventListener("click", handleClick);
 	}, []);
 
-	// Cleanup geolocation watch and timer on unmount
+	/* ── Cleanup geolocation & timer on unmount ── */
 	useEffect(() => {
 		return () => {
 			if (watchIdRef.current !== null) {
@@ -582,12 +266,14 @@ export default function TripDrawer({
 		};
 	}, []);
 
-	// When drawer (re-)opens with an active trip, jump straight to navigating view
+	/* ── Jump to navigating view when active trip present ── */
 	useEffect(() => {
 		if (open && activeTrip) {
 			setView("navigating");
 		}
 	}, [open, activeTrip]);
+
+	/* ── Handlers ──────────────────────────────── */
 
 	const handleFromSelect = useCallback(
 		(suggestion: LocationSuggestion) => {
@@ -595,7 +281,6 @@ export default function TripDrawer({
 			setFromQuery(suggestion.name);
 			setShowFromSuggestions(false);
 			onFromSelect?.(suggestion);
-			setMinimized(true);
 		},
 		[onFromSelect]
 	);
@@ -606,31 +291,27 @@ export default function TripDrawer({
 			setToQuery(suggestion.name);
 			setShowToSuggestions(false);
 			onToSelect?.(suggestion);
-			setMinimized(true);
 		},
 		[onToSelect]
 	);
 
 	const handleFindRoute = useCallback(async () => {
 		if (!selectedFrom || !selectedTo) return;
-
 		setIsSearching(true);
 		try {
 			const routes = await fetchRoutes(selectedFrom, selectedTo);
 			const best = routes[0] ?? null;
 			setRoute(best);
 			onRouteFound?.(best);
-			setSlideDirection("left");
 			setView("results");
 		} catch {
-			// Fallback — show error or stay on search
+			/* stay on search */
 		} finally {
 			setIsSearching(false);
 		}
 	}, [selectedFrom, selectedTo, onRouteFound]);
 
 	const handleBack = useCallback(() => {
-		setSlideDirection("right");
 		setView("search");
 		setRoute(null);
 		onRouteFound?.(null);
@@ -639,13 +320,11 @@ export default function TripDrawer({
 	const handleStartTripNav = useCallback(() => {
 		if (!route) return;
 		onStartTrip?.(route);
-		setSlideDirection("left");
 		setView("navigating");
 	}, [route, onStartTrip]);
 
 	const handleCancelTripNav = useCallback(() => {
 		onCancelTrip?.();
-		setSlideDirection("right");
 		setView("results");
 	}, [onCancelTrip]);
 
@@ -661,7 +340,6 @@ export default function TripDrawer({
 			setLicensePlate("");
 			setRouteNumber("");
 			setBoardingType("jutc");
-			setMinimized(false);
 			onFromSelect?.(null);
 			onToSelect?.(null);
 			onRouteFound?.(null);
@@ -669,28 +347,19 @@ export default function TripDrawer({
 	}, [onFromSelect, onToSelect, onRouteFound]);
 
 	const handleGoToBoarding = useCallback(() => {
-		setMinimized(false);
-		setSlideDirection("left");
 		setView("boarding");
 	}, []);
 
 	const handleBackFromBoarding = useCallback(() => {
-		setSlideDirection("right");
 		setView("search");
 	}, []);
 
 	const handleStartTracking = useCallback(async () => {
-		if (!licensePlate.trim()) {
-			return;
-		}
-		if (boardingType === "jutc" && !routeNumber) {
-			return;
-		}
+		if (!licensePlate.trim()) return;
+		if (boardingType === "jutc" && !routeNumber) return;
 
 		setIsBoardingLoading(true);
-
 		try {
-			// Get initial position
 			const position = await new Promise<GeolocationPosition>(
 				(resolve, reject) => {
 					navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -703,7 +372,6 @@ export default function TripDrawer({
 			const initialLat = position.coords.latitude;
 			const initialLng = position.coords.longitude;
 
-			// Call API to start tracking
 			const result = await client.crowdsource.startTracking({
 				vehicleType: boardingType,
 				licensePlate: licensePlate.trim().toUpperCase(),
@@ -716,14 +384,12 @@ export default function TripDrawer({
 			setLastPosition({ lat: initialLat, lng: initialLng });
 			setTrackingElapsed(0);
 
-			// Start geolocation watch
 			const watchId = navigator.geolocation.watchPosition(
 				(pos) => {
 					const lat = pos.coords.latitude;
 					const lng = pos.coords.longitude;
 					setLastPosition({ lat, lng });
 
-					// Send update to server
 					if (result.id) {
 						client.crowdsource
 							.updateLocation({
@@ -733,67 +399,49 @@ export default function TripDrawer({
 								heading: pos.coords.heading ?? undefined,
 								speed: pos.coords.speed ?? undefined,
 							})
-							.catch(() => {
-								// Silently fail — will retry on next position update
-							});
+							.catch(() => {});
 					}
 				},
-				() => {
-					// Geolocation error — keep tracking but position won't update
-				},
-				{
-					enableHighAccuracy: true,
-					maximumAge: 5_000,
-					timeout: 15_000,
-				}
+				() => {},
+				{ enableHighAccuracy: true, maximumAge: 5_000, timeout: 15_000 }
 			);
 			watchIdRef.current = watchId;
 
-			// Start elapsed timer
 			const timer = setInterval(() => {
 				setTrackingElapsed((prev) => prev + 1);
 			}, 1000);
 			trackingTimerRef.current = timer;
 
-			setSlideDirection("left");
 			setView("tracking");
 		} catch {
-			// Handle error (geolocation denied, API error, etc.)
+			/* handle geolocation / API error */
 		} finally {
 			setIsBoardingLoading(false);
 		}
 	}, [boardingType, licensePlate, routeNumber]);
 
 	const handleStopTracking = useCallback(async () => {
-		// Stop geolocation watch
 		if (watchIdRef.current !== null) {
 			navigator.geolocation.clearWatch(watchIdRef.current);
 			watchIdRef.current = null;
 		}
-		// Stop timer
 		if (trackingTimerRef.current !== null) {
 			clearInterval(trackingTimerRef.current);
 			trackingTimerRef.current = null;
 		}
-
-		// Call API to deactivate
 		if (liveVehicleId) {
 			try {
-				await client.crowdsource.stopTracking({
-					liveVehicleId,
-				});
+				await client.crowdsource.stopTracking({ liveVehicleId });
 			} catch {
-				// Best effort
+				/* best effort */
 			}
 		}
-
 		setLiveVehicleId(null);
 		setTrackingElapsed(0);
 		setLastPosition(null);
 		setTrackingMinimized(false);
 		setLicensePlate("");
 		setRouteNumber("");
-		setSlideDirection("right");
 		setView("search");
 	}, [liveVehicleId]);
 
@@ -811,525 +459,707 @@ export default function TripDrawer({
 		(boardingType === "jutc" && !routeNumber) ||
 		isBoardingLoading;
 
-	return (
-		<Drawer.Root
-			onOpenChange={(newOpen) => {
-				// Prevent closing while actively broadcasting vehicle location
-				if (!newOpen && view === "tracking") {
-					return;
-				}
-				setOpen(newOpen);
-			}}
-			open={open}
-			shouldScaleBackground={false}
-		>
-			{/* Floating trigger pill */}
-			<Drawer.Trigger asChild>
-				<button
-					aria-label={activeTrip ? "View active trip" : "Open trip planner"}
-					className={`absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl border px-5 py-3 text-sm font-semibold shadow-xl backdrop-blur-xl transition-all active:scale-95 ${
-						activeTrip
-							? "border-green-400/60 bg-green-500 text-white hover:bg-green-600 hover:shadow-2xl dark:border-green-500/60 dark:bg-green-600 dark:hover:bg-green-700"
-							: "border-white/60 bg-white/90 text-gray-900 hover:bg-white hover:shadow-2xl dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-100 dark:hover:bg-neutral-800"
+	/* ── Prevent close for tracking / navigating ── */
+	const canClose = view !== "tracking" && view !== "navigating";
+
+	const handleOpenChange = useCallback(
+		(nextOpen: boolean) => {
+			if (!nextOpen && !canClose) return;
+			if (!nextOpen) {
+				handleClose();
+			} else {
+				setOpen(true);
+			}
+		},
+		[canClose, handleClose]
+	);
+
+	/* ── Trigger button (always rendered) ──────── */
+	const triggerButton = (
+		<DrawerTrigger asChild>
+			<button
+				aria-label={activeTrip ? "View active trip" : "Open trip planner"}
+				className={`absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl border px-5 py-3 text-sm font-semibold shadow-xl backdrop-blur-xl transition-all active:scale-95 ${
+					activeTrip
+						? "border-green-400/60 bg-green-500 text-white hover:bg-green-600 dark:border-green-500/60 dark:bg-green-600"
+						: "border-border bg-background/90 text-foreground hover:bg-background hover:shadow-2xl"
+				}`}
+				style={{ zIndex: 1002 }}
+				type="button"
+			>
+				<div
+					className={`flex h-7 w-7 items-center justify-center rounded-full ${
+						activeTrip ? "bg-white/25" : "bg-blue-500"
 					}`}
-					style={{ zIndex: 1002 }}
-					type="button"
 				>
-					<div
-						className={`flex h-7 w-7 items-center justify-center rounded-full ${
-							activeTrip ? "bg-white/25" : "bg-blue-500"
-						}`}
-					>
-						<Navigation color="white" size={13} />
-					</div>
-					{activeTrip
-						? `Active Trip · Leg ${activeTrip.currentLegIndex + 1}/${activeTrip.legs.length}`
-						: "Plan a Trip"}
-				</button>
-			</Drawer.Trigger>
+					<Navigation color="white" size={13} />
+				</div>
+				{activeTrip
+					? `Active Trip · Leg ${activeTrip.currentLegIndex + 1}/${activeTrip.legs.length}`
+					: "Plan a Trip"}
+			</button>
+		</DrawerTrigger>
+	);
 
-			<Drawer.Portal>
-				<Drawer.Overlay
-					className={`fixed inset-0 transition-colors duration-300 ${
-						view === "tracking"
-							? "bg-transparent"
-							: "bg-black/20 dark:bg-black/40"
-					}`}
-					style={{
-						zIndex: 1010,
-						pointerEvents: view === "tracking" ? "none" : "auto",
-					}}
-				/>
-
-				<Drawer.Content
-					aria-describedby={undefined}
-					className="fixed inset-x-0 bottom-0 mx-auto flex max-w-lg flex-col rounded-t-3xl bg-white/95 shadow-2xl outline-none backdrop-blur-xl transition-[height] duration-300 ease-in-out dark:bg-neutral-900/95"
-					style={{
-						zIndex: 1011,
-						height:
-							view === "tracking"
-								? trackingMinimized
-									? "20px"
-									: "80px"
-								: view === "navigating"
-									? "56vh"
-									: minimized && view === "search"
-										? "8em"
-										: "56vh",
-					}}
+	/* ── Render the correct drawer content ─────── */
+	const renderContent = () => {
+		/* ── SEARCH ─────────────────────────────── */
+		if (view === "search") {
+			return (
+				<DrawerContent
+					className="bg-background/95 backdrop-blur-xl"
+					style={{ zIndex: 1011 }}
 				>
-					{/* Drag handle — acts as expand toggle while tracking */}
-					<div
-						className={`flex justify-center pt-3 pb-1 ${
-							view === "tracking" ? "cursor-pointer" : ""
-						}`}
-						onClick={() => {
-							if (view === "tracking") setTrackingMinimized((v) => !v);
-						}}
-					>
-						<div className="h-1.5 w-12 rounded-full bg-gray-300 dark:bg-neutral-600" />
-					</div>
-
-					<Drawer.Title className="sr-only">Plan a Trip</Drawer.Title>
-
-					{/* Sliding panel container */}
-					<div className="relative flex-1 overflow-hidden">
-						{/* ── Search panel ────────────────── */}
-						<div
-							className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${getSlideClass(view, "search", slideDirection)}`}
-						>
-							{/* ── Minimized compact view ──── */}
-							{minimized ? (
+					<DrawerHeader>
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-2.5">
+								<div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500">
+									<Route color="white" size={15} />
+								</div>
+								<div>
+									<DrawerTitle>Start Trip</DrawerTitle>
+									<DrawerDescription>Find the best route</DrawerDescription>
+								</div>
+							</div>
+							<DrawerClose asChild>
 								<button
-									className="flex w-full flex-col gap-3 px-4 pt-2 pb-4 text-left"
-									onClick={() => setMinimized(false)}
+									aria-label="Close trip planner"
+									className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 									type="button"
 								>
-									<div className="flex items-center gap-3">
-										{/* From / To pills */}
-										<div className="flex min-w-0 flex-1 items-center gap-2">
-											<div className="flex items-center gap-1.5 min-w-0 flex-1">
-												<div className="h-2 w-2 shrink-0 rounded-full bg-green-500" />
-												<p className="truncate text-sm text-gray-700 dark:text-neutral-300">
-													{selectedFrom?.name ?? "Starting location"}
-												</p>
-											</div>
-											<span className="shrink-0 text-gray-300 dark:text-neutral-600">
-												→
-											</span>
-											<div className="flex items-center gap-1.5 min-w-0 flex-1">
-												<div className="h-2 w-2 shrink-0 rounded-full bg-red-500" />
-												<p className="truncate text-sm text-gray-700 dark:text-neutral-300">
-													{selectedTo?.name ?? "Destination"}
-												</p>
-											</div>
-										</div>
-										<X
-											className="shrink-0 text-gray-400 dark:text-neutral-500"
-											onClick={(e) => {
-												e.stopPropagation();
-												handleClose();
-											}}
-											size={16}
-										/>
-									</div>
-									<Button
-										className="h-10 w-full rounded-xl bg-blue-500 text-sm font-semibold text-white shadow-md shadow-blue-500/25 transition-all hover:bg-blue-600 hover:shadow-lg disabled:opacity-50 disabled:shadow-none"
-										disabled={isRouteDisabled}
-										onClick={(e) => {
-											e.stopPropagation();
-											setMinimized(false);
-											handleFindRoute();
-										}}
-										type="button"
-									>
-										<Navigation size={14} />
-										Find Route
-									</Button>
+									<X size={18} />
 								</button>
+							</DrawerClose>
+						</div>
+					</DrawerHeader>
+
+					{/* Search body */}
+					<div className="flex flex-col gap-3 overflow-y-auto px-4 pb-6">
+						{/* From */}
+						<div
+							className="relative"
+							onClickCapture={(e) => e.stopPropagation()}
+						>
+							<label
+								className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
+								htmlFor="drawer-from"
+							>
+								<div className="h-2 w-2 rounded-full bg-emerald-500" />
+								From
+							</label>
+							<div className="relative">
+								<Search
+									className="absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground"
+									size={14}
+								/>
+								<input
+									autoComplete="off"
+									className="h-10 w-full rounded-xl border border-input bg-muted pr-3 pl-8 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:bg-background focus:ring-2 focus:ring-ring/20"
+									id="drawer-from"
+									onChange={(e) => {
+										setFromQuery(e.target.value);
+										setSelectedFrom(null);
+										onFromSelect?.(null);
+										setShowFromSuggestions(true);
+									}}
+									onFocus={() => setShowFromSuggestions(true)}
+									placeholder="Search starting location..."
+									type="text"
+									value={fromQuery}
+								/>
+							</div>
+							<SuggestionList
+								onSelect={handleFromSelect}
+								query={fromQuery}
+								visible={showFromSuggestions}
+							/>
+						</div>
+
+						{/* Connector dots */}
+						<div className="flex flex-col items-center gap-0.5 pl-1">
+							<div className="h-1 w-1 rounded-full bg-border" />
+							<div className="h-1 w-1 rounded-full bg-border" />
+							<div className="h-1 w-1 rounded-full bg-border" />
+						</div>
+
+						{/* To */}
+						<div
+							className="relative"
+							onClickCapture={(e) => e.stopPropagation()}
+						>
+							<label
+								className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
+								htmlFor="drawer-to"
+							>
+								<div className="h-2 w-2 rounded-full bg-destructive" />
+								To
+							</label>
+							<div className="relative">
+								<Search
+									className="absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground"
+									size={14}
+								/>
+								<input
+									autoComplete="off"
+									className="h-10 w-full rounded-xl border border-input bg-muted pr-3 pl-8 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:bg-background focus:ring-2 focus:ring-ring/20"
+									id="drawer-to"
+									onChange={(e) => {
+										setToQuery(e.target.value);
+										setSelectedTo(null);
+										onToSelect?.(null);
+										setShowToSuggestions(true);
+									}}
+									onFocus={() => setShowToSuggestions(true)}
+									placeholder="Search destination..."
+									ref={toRef}
+									type="text"
+									value={toQuery}
+								/>
+							</div>
+							<SuggestionList
+								onSelect={handleToSelect}
+								query={toQuery}
+								visible={showToSuggestions}
+							/>
+						</div>
+
+						{/* Find route */}
+						<Button
+							className="mt-2 h-11 w-full rounded-xl bg-blue-500 text-sm font-semibold text-white shadow-md shadow-blue-500/25 transition-all hover:bg-blue-600 hover:shadow-lg disabled:opacity-50 disabled:shadow-none"
+							disabled={isRouteDisabled}
+							onClick={handleFindRoute}
+							type="button"
+						>
+							{isSearching ? (
+								<>
+									<div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+									Finding routes...
+								</>
 							) : (
 								<>
-									{/* ── Expanded search view ──── */}
-									<div className="flex items-center justify-between px-4 pt-2 pb-3">
-										<div className="flex items-center gap-2.5">
-											<div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500">
-												<Route color="white" size={15} />
-											</div>
-											<div>
-												<h2 className="font-semibold text-gray-900 dark:text-neutral-100">
-													Start Trip
-												</h2>
-												<p className="text-gray-500 text-xs dark:text-neutral-400">
-													Find the best route
-												</p>
-											</div>
-										</div>
-										<button
-											aria-label="Close trip planner"
-											className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
-											onClick={handleClose}
-											type="button"
-										>
-											<X size={18} />
-										</button>
-									</div>
-
-									<div className="flex flex-col gap-3 overflow-y-auto px-4 pb-6">
-										{/* From */}
-										<div
-											className="relative"
-											onClickCapture={(e) => e.stopPropagation()}
-										>
-											<label
-												className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-neutral-400"
-												htmlFor="drawer-from"
-											>
-												<div className="h-2 w-2 rounded-full bg-green-500" />
-												From
-											</label>
-											<div className="relative">
-												<Search
-													className="absolute top-1/2 left-2.5 -translate-y-1/2 text-gray-400 dark:text-neutral-500"
-													size={14}
-												/>
-												<input
-													autoComplete="off"
-													className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 pr-3 pl-8 text-sm text-gray-800 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-blue-500 dark:focus:bg-neutral-800 dark:focus:ring-blue-900/30"
-													id="drawer-from"
-													onChange={(e) => {
-														setFromQuery(e.target.value);
-														setSelectedFrom(null);
-														onFromSelect?.(null);
-														setShowFromSuggestions(true);
-													}}
-													onFocus={() => setShowFromSuggestions(true)}
-													placeholder="Search starting location..."
-													type="text"
-													value={fromQuery}
-												/>
-											</div>
-											<SuggestionList
-												onSelect={handleFromSelect}
-												query={fromQuery}
-												visible={showFromSuggestions}
-											/>
-										</div>
-
-										{/* Connector dots */}
-										<div className="flex flex-col items-center gap-0.5 pl-1">
-											<div className="h-1 w-1 rounded-full bg-gray-300 dark:bg-neutral-600" />
-											<div className="h-1 w-1 rounded-full bg-gray-300 dark:bg-neutral-600" />
-											<div className="h-1 w-1 rounded-full bg-gray-300 dark:bg-neutral-600" />
-										</div>
-
-										{/* To */}
-										<div
-											className="relative"
-											onClickCapture={(e) => e.stopPropagation()}
-										>
-											<label
-												className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-neutral-400"
-												htmlFor="drawer-to"
-											>
-												<div className="h-2 w-2 rounded-full bg-red-500" />
-												To
-											</label>
-											<div className="relative">
-												<Search
-													className="absolute top-1/2 left-2.5 -translate-y-1/2 text-gray-400 dark:text-neutral-500"
-													size={14}
-												/>
-												<input
-													autoComplete="off"
-													className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 pr-3 pl-8 text-sm text-gray-800 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-blue-500 dark:focus:bg-neutral-800 dark:focus:ring-blue-900/30"
-													id="drawer-to"
-													onChange={(e) => {
-														setToQuery(e.target.value);
-														setSelectedTo(null);
-														onToSelect?.(null);
-														setShowToSuggestions(true);
-													}}
-													onFocus={() => setShowToSuggestions(true)}
-													placeholder="Search destination..."
-													ref={toRef}
-													type="text"
-													value={toQuery}
-												/>
-											</div>
-											<SuggestionList
-												onSelect={handleToSelect}
-												query={toQuery}
-												visible={showToSuggestions}
-											/>
-										</div>
-
-										<Button
-											className="mt-2 h-11 w-full rounded-xl bg-blue-500 text-sm font-semibold text-white shadow-md shadow-blue-500/25 transition-all hover:bg-blue-600 hover:shadow-lg disabled:opacity-50 disabled:shadow-none"
-											disabled={isRouteDisabled}
-											onClick={handleFindRoute}
-											type="button"
-										>
-											{isSearching ? (
-												<>
-													<div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-													Finding routes...
-												</>
-											) : (
-												<>
-													<Navigation size={15} />
-													Find Route
-												</>
-											)}
-										</Button>
-
-										{/* Divider */}
-										<div className="flex items-center gap-3 pt-1">
-											<div className="h-px flex-1 bg-gray-200 dark:bg-neutral-700" />
-											<span className="text-xs text-gray-400 dark:text-neutral-500">
-												or
-											</span>
-											<div className="h-px flex-1 bg-gray-200 dark:bg-neutral-700" />
-										</div>
-
-										{/* Board vehicle button */}
-										<Button
-											className="h-11 w-full rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
-											onClick={handleGoToBoarding}
-											type="button"
-										>
-											<Bus size={15} />
-											I'm Boarding a Vehicle
-										</Button>
-									</div>
+									<Navigation size={15} />
+									Find Route
 								</>
 							)}
+						</Button>
+
+						{/* Divider */}
+						<div className="flex items-center gap-3 pt-1">
+							<div className="h-px flex-1 bg-border" />
+							<span className="text-xs text-muted-foreground">or</span>
+							<div className="h-px flex-1 bg-border" />
 						</div>
 
-						{/* ── Results panel ──────────────── */}
-						<div
-							className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${getSlideClass(view, "results", slideDirection)}`}
+						{/* Board vehicle */}
+						<Button
+							className="h-11 w-full rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+							onClick={handleGoToBoarding}
+							type="button"
 						>
-							{route && (
-								<RouteResultsPanel
-									onBack={handleBack}
-									onClose={handleClose}
-									onStartTrip={handleStartTripNav}
-									route={route}
-								/>
-							)}
-						</div>
+							<Bus size={15} />
+							I'm Boarding a Vehicle
+						</Button>
+					</div>
+				</DrawerContent>
+			);
+		}
 
-						{/* ── Navigating panel ──────────────── */}
-						<div
-							className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${getSlideClass(view, "navigating", slideDirection)}`}
-						>
-							{activeTrip && route && (
-								<NavigatingPanel
-									activeTrip={activeTrip}
-									onCancel={handleCancelTripNav}
-									route={route}
-								/>
-							)}
-						</div>
-
-						{/* ── Boarding panel ──────────────── */}
-						<div
-							className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${getSlideClass(view, "boarding", slideDirection)}`}
-						>
-							<div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-neutral-700">
-								<button
-									aria-label="Go back"
-									className="rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
-									onClick={handleBackFromBoarding}
-									type="button"
-								>
-									<ArrowLeft size={18} />
-								</button>
-								<div className="min-w-0 flex-1">
-									<h2 className="font-semibold text-gray-900 dark:text-neutral-100">
-										Board Vehicle
-									</h2>
-									<p className="text-xs text-gray-500 dark:text-neutral-400">
-										Track your ride to help others
-									</p>
-								</div>
+		/* ── RESULTS ────────────────────────────── */
+		if (view === "results" && route) {
+			return (
+				<DrawerContent
+					className="max-h-[70dvh] bg-background/95 backdrop-blur-xl"
+					style={{ zIndex: 1011 }}
+				>
+					{/* Header with back */}
+					<DrawerHeader className="border-b border-border pb-3">
+						<div className="flex items-center gap-2">
+							<button
+								aria-label="Go back"
+								className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted"
+								onClick={handleBack}
+								type="button"
+							>
+								<ArrowLeft size={18} />
+							</button>
+							<div className="min-w-0 flex-1">
+								<DrawerTitle className="truncate text-base">
+									Trip to {route.destination}
+								</DrawerTitle>
+								<DrawerDescription>
+									{route.legs.length} {route.legs.length === 1 ? "leg" : "legs"}{" "}
+									· Optimal route
+								</DrawerDescription>
+							</div>
+							<DrawerClose asChild>
 								<button
 									aria-label="Close"
-									className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
+									className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 									onClick={handleClose}
 									type="button"
 								>
 									<X size={18} />
 								</button>
-							</div>
+							</DrawerClose>
+						</div>
+					</DrawerHeader>
 
-							<div className="flex flex-col gap-4 overflow-y-auto px-4 py-4">
-								{/* Vehicle type toggle */}
-								<div>
-									<p className="mb-2 text-xs font-medium text-gray-500 dark:text-neutral-400">
-										Vehicle Type
-									</p>
-									<div className="flex gap-2">
-										<button
-											className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all ${
-												boardingType === "jutc"
-													? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-													: "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700"
-											}`}
-											onClick={() => setBoardingType("jutc")}
-											type="button"
+					{/* Legs timeline */}
+					<div className="flex-1 overflow-y-auto px-4 py-3">
+						<div className="space-y-0">
+							{route.legs.map((leg, index) => {
+								const mode =
+									leg.mode ?? (leg.type === "jutc" ? "jutc" : "taxi");
+								const isWalk = mode === "walk";
+								const isLast = index === route.legs.length - 1;
+								const LegIcon = getLegIcon(mode);
+
+								return (
+									<div className="relative flex gap-3" key={leg.legNumber}>
+										<div className="flex flex-col items-center">
+											<div
+												className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm ${getLegColor(mode)}`}
+											>
+												<LegIcon color="white" size={14} />
+											</div>
+											{!isLast && (
+												<div className="my-1 w-0.5 flex-1 rounded-full bg-border" />
+											)}
+										</div>
+										<div
+											className={`min-w-0 flex-1 ${isLast ? "pb-0" : "pb-4"}`}
 										>
-											<Bus size={16} />
-											JUTC Bus
-										</button>
-										<button
-											className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all ${
-												boardingType === "taxi"
-													? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-													: "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700"
-											}`}
-											onClick={() => setBoardingType("taxi")}
-											type="button"
-										>
-											<Car size={16} />
-											Taxi
-										</button>
+											<div className="flex items-start justify-between">
+												<div className="min-w-0">
+													<p className="font-medium text-muted-foreground text-xs">
+														Leg {leg.legNumber}
+													</p>
+													<p className="truncate font-semibold text-foreground text-sm">
+														{leg.vehicleName}
+													</p>
+												</div>
+												<span className="shrink-0 rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground text-xs">
+													{isWalk
+														? "Free"
+														: `JMD $${leg.cost.toLocaleString()}`}
+												</span>
+											</div>
+											<p className="mt-0.5 text-muted-foreground text-xs">
+												{leg.from} → {leg.to}
+											</p>
+											<p className="mt-0.5 flex items-center gap-1 text-muted-foreground text-xs">
+												<Clock size={10} />
+												{leg.duration} min
+											</p>
+										</div>
 									</div>
-								</div>
-
-								{/* License plate */}
-								<div>
-									<label
-										className="mb-1 block text-xs font-medium text-gray-500 dark:text-neutral-400"
-										htmlFor="license-plate"
-									>
-										License Plate Number
-									</label>
-									<input
-										autoCapitalize="characters"
-										autoComplete="off"
-										className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-mono uppercase text-gray-800 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-blue-500 dark:focus:bg-neutral-800 dark:focus:ring-blue-900/30"
-										id="license-plate"
-										maxLength={20}
-										onChange={(e) => setLicensePlate(e.target.value)}
-										placeholder="e.g. 1234AB"
-										type="text"
-										value={licensePlate}
-									/>
-								</div>
-
-								{/* Route number — only for JUTC */}
-								{boardingType === "jutc" && (
-									<div>
-										<label
-											className="mb-1 block text-xs font-medium text-gray-500 dark:text-neutral-400"
-											htmlFor="route-number"
-										>
-											Bus Route Number
-										</label>
-										<select
-											className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none transition-colors focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:focus:border-blue-500 dark:focus:bg-neutral-800 dark:focus:ring-blue-900/30"
-											id="route-number"
-											onChange={(e) => setRouteNumber(e.target.value)}
-											value={routeNumber}
-										>
-											<option value="">Select route…</option>
-											{JUTC_ROUTES.map((r) => (
-												<option key={r.route} value={r.route}>
-													{r.route} — {r.origin} → {r.destination}
-												</option>
-											))}
-										</select>
-									</div>
-								)}
-
-								{/* Info callout */}
-								<div className="rounded-xl border border-blue-100 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
-									<p className="text-xs leading-relaxed text-blue-700 dark:text-blue-400">
-										<Radio className="mr-1 inline -translate-y-px" size={12} />
-										Your location will be shared anonymously while you ride,
-										helping other commuters see live vehicle positions.
-									</p>
-								</div>
-
-								<Button
-									className="mt-1 h-11 w-full rounded-xl bg-green-600 text-sm font-semibold text-white shadow-md shadow-green-600/25 transition-all hover:bg-green-700 hover:shadow-lg disabled:opacity-50 disabled:shadow-none"
-									disabled={isBoardDisabled}
-									onClick={handleStartTracking}
-									type="button"
-								>
-									{isBoardingLoading ? (
-										<>
-											<div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-											Starting…
-										</>
-									) : (
-										<>
-											<Radio size={15} />
-											Start Tracking
-										</>
-									)}
-								</Button>
-							</div>
+								);
+							})}
 						</div>
 
-						{/* ── Tracking panel (compact bar) ──────────────── */}
-						<div
-							className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${getSlideClass(view, "tracking", slideDirection)}`}
-						>
-							<div
-								className={`flex items-center gap-3 px-4 py-2 transition-opacity duration-200 ${
-									trackingMinimized ? "pointer-events-none opacity-0" : "opacity-100"
-								}`}
-							>
-								{/* Live dot */}
-								<div className="relative flex shrink-0">
-									<span className="inline-flex h-3 w-3 rounded-full bg-green-500 shadow-sm shadow-green-500/50" />
-								</div>
-
-								{/* Vehicle + destination info */}
-								<div className="min-w-0 flex-1">
-									<p className="truncate text-sm font-semibold text-gray-900 dark:text-neutral-100">
-										{boardingType === "jutc"
-											? `JUTC Bus ${routeNumber}`
-											: `Taxi ${licensePlate.toUpperCase()}`}
-									</p>
-									{selectedTo && (
-										<p className="truncate text-xs text-gray-500 dark:text-neutral-400">
-											To: {selectedTo.name}
-										</p>
-									)}
-								</div>
-
-								{/* Elapsed time */}
-								<p className="shrink-0 font-mono text-lg font-bold text-green-600 dark:text-green-400">
-									{formatElapsed(trackingElapsed)}
-								</p>
-
-								{/* Minimize button */}
-								<button
-									aria-label="Minimize tracking bar"
-									className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 dark:text-neutral-500 dark:hover:bg-neutral-800"
-									onClick={() => setTrackingMinimized(true)}
-									type="button"
-								>
-									<ChevronDown size={16} />
-								</button>
-
-								{/* Stop button */}
-								<Button
-									className="h-9 shrink-0 rounded-xl bg-red-500 px-3 text-xs font-semibold text-white shadow-md shadow-red-500/25 transition-all hover:bg-red-600 hover:shadow-lg"
-									onClick={handleStopTracking}
-									type="button"
-								>
-									<Square size={12} />
-									Stop
-								</Button>
+						{/* Destination marker */}
+						<div className="mt-3 flex items-center gap-3">
+							<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 shadow-sm">
+								<MapPin color="white" size={14} />
 							</div>
+							<p className="font-medium text-foreground text-sm">
+								Arrive at {route.destination}
+							</p>
 						</div>
 					</div>
-				</Drawer.Content>
-			</Drawer.Portal>
-		</Drawer.Root>
+
+					{/* Summary footer */}
+					<DrawerFooter className="border-t border-border">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-4">
+								<div className="flex items-center gap-1.5">
+									<Clock className="text-muted-foreground" size={14} />
+									<span className="font-semibold text-foreground text-sm">
+										{route.totalDuration} min
+									</span>
+								</div>
+								<div className="flex items-center gap-1.5">
+									<DollarSign className="text-muted-foreground" size={14} />
+									<span className="font-semibold text-foreground text-sm">
+										JMD ${route.totalCost.toLocaleString()}
+									</span>
+								</div>
+							</div>
+						</div>
+						<Button
+							className="h-11 w-full rounded-xl bg-green-600 text-sm font-semibold text-white shadow-md shadow-green-600/25 transition-all hover:bg-green-700 hover:shadow-lg"
+							onClick={handleStartTripNav}
+							type="button"
+						>
+							<Play size={15} />
+							Start Trip
+						</Button>
+					</DrawerFooter>
+				</DrawerContent>
+			);
+		}
+
+		/* ── NAVIGATING ─────────────────────────── */
+		if (view === "navigating" && activeTrip && route) {
+			const currentLeg = activeTrip.legs[activeTrip.currentLegIndex];
+			if (!currentLeg) return null;
+
+			const { mode } = currentLeg;
+			const isWalk = mode === "walk";
+			const isBus = mode === "jutc";
+			const LegIcon = getLegIcon(mode);
+			const remainingLegs = activeTrip.legs.slice(
+				activeTrip.currentLegIndex + 1
+			);
+			const remainingDuration =
+				remainingLegs.reduce((s, l) => s + l.duration, 0) + currentLeg.duration;
+
+			return (
+				<DrawerContent
+					className="max-h-[70dvh] bg-background/95 backdrop-blur-xl"
+					style={{ zIndex: 1011 }}
+				>
+					{/* Current leg header */}
+					<DrawerHeader className="border-b border-border pb-3">
+						<div className="flex items-center gap-3">
+							<div
+								className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm ${getLegColor(mode)}`}
+							>
+								<LegIcon color="white" size={14} />
+							</div>
+							<div className="min-w-0 flex-1">
+								<DrawerTitle className="text-sm">
+									{isWalk ? "Walk" : currentLeg.vehicleName}
+								</DrawerTitle>
+								<DrawerDescription className="text-xs">
+									{currentLeg.from} → {currentLeg.to}
+								</DrawerDescription>
+							</div>
+							<span className="shrink-0 rounded-full bg-blue-100 px-2.5 py-1 font-mono font-semibold text-blue-700 text-xs dark:bg-blue-900/40 dark:text-blue-400">
+								Leg {activeTrip.currentLegIndex + 1}/{activeTrip.legs.length}
+							</span>
+						</div>
+					</DrawerHeader>
+
+					{/* Detail */}
+					<div className="flex-1 overflow-y-auto px-4 py-3">
+						<div className="rounded-xl border border-border bg-muted/50 p-3">
+							<div className="flex items-center justify-between">
+								<div className="flex items-center gap-2">
+									<Clock className="text-muted-foreground" size={14} />
+									<span className="font-medium text-foreground text-sm">
+										~{currentLeg.duration} min
+									</span>
+								</div>
+								{!isWalk && (
+									<span className="rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground text-xs">
+										JMD ${currentLeg.cost.toLocaleString()}
+									</span>
+								)}
+							</div>
+							{!isWalk && (
+								<p className="mt-2 text-muted-foreground text-xs">
+									{isBus ? "Board the bus at" : "Take the taxi at"}{" "}
+									<span className="font-medium text-foreground">
+										{currentLeg.from}
+									</span>
+								</p>
+							)}
+							{isWalk && (
+								<p className="mt-2 text-muted-foreground text-xs">
+									Walk to{" "}
+									<span className="font-medium text-foreground">
+										{currentLeg.to}
+									</span>
+								</p>
+							)}
+						</div>
+
+						{/* Upcoming */}
+						{remainingLegs.length > 0 && (
+							<div className="mt-3">
+								<p className="mb-2 font-medium text-muted-foreground text-xs">
+									Up next
+								</p>
+								<div className="space-y-1.5">
+									{remainingLegs.map((leg) => {
+										const NextIcon = getLegIcon(leg.mode);
+										return (
+											<div
+												className="flex items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5"
+												key={leg.legNumber}
+											>
+												<NextIcon className="text-muted-foreground" size={12} />
+												<span className="flex-1 truncate text-muted-foreground text-xs">
+													{leg.vehicleName} → {leg.to}
+												</span>
+												<ChevronRight className="text-border" size={12} />
+											</div>
+										);
+									})}
+								</div>
+							</div>
+						)}
+					</div>
+
+					{/* Footer */}
+					<DrawerFooter className="border-t border-border">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-1.5">
+								<Clock className="text-muted-foreground" size={14} />
+								<span className="font-semibold text-foreground text-sm">
+									~{remainingDuration} min remaining
+								</span>
+							</div>
+							<div className="flex items-center gap-1.5">
+								<DollarSign className="text-muted-foreground" size={14} />
+								<span className="font-semibold text-foreground text-sm">
+									JMD ${route.totalCost.toLocaleString()}
+								</span>
+							</div>
+						</div>
+						<Button
+							className="h-10 w-full rounded-xl bg-destructive text-sm font-semibold text-destructive-foreground shadow-md transition-all hover:bg-destructive/90 hover:shadow-lg"
+							onClick={handleCancelTripNav}
+							type="button"
+						>
+							<CircleStop size={14} />
+							Cancel Trip
+						</Button>
+					</DrawerFooter>
+				</DrawerContent>
+			);
+		}
+
+		/* ── BOARDING ───────────────────────────── */
+		if (view === "boarding") {
+			return (
+				<DrawerContent
+					className="max-h-[80dvh] bg-background/95 backdrop-blur-xl"
+					style={{ zIndex: 1011 }}
+				>
+					<DrawerHeader className="border-b border-border pb-3">
+						<div className="flex items-center gap-2">
+							<button
+								aria-label="Go back"
+								className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted"
+								onClick={handleBackFromBoarding}
+								type="button"
+							>
+								<ArrowLeft size={18} />
+							</button>
+							<div className="min-w-0 flex-1">
+								<DrawerTitle>Board Vehicle</DrawerTitle>
+								<DrawerDescription>
+									Track your ride to help others
+								</DrawerDescription>
+							</div>
+							<DrawerClose asChild>
+								<button
+									aria-label="Close"
+									className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+									onClick={handleClose}
+									type="button"
+								>
+									<X size={18} />
+								</button>
+							</DrawerClose>
+						</div>
+					</DrawerHeader>
+
+					<div className="flex flex-col gap-4 overflow-y-auto px-4 py-4">
+						{/* Vehicle type toggle */}
+						<div>
+							<p className="mb-2 text-xs font-medium text-muted-foreground">
+								Vehicle Type
+							</p>
+							<div className="flex gap-2">
+								<button
+									className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all ${
+										boardingType === "jutc"
+											? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+											: "border-input bg-muted text-muted-foreground hover:bg-accent"
+									}`}
+									onClick={() => setBoardingType("jutc")}
+									type="button"
+								>
+									<Bus size={16} />
+									JUTC Bus
+								</button>
+								<button
+									className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all ${
+										boardingType === "taxi"
+											? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+											: "border-input bg-muted text-muted-foreground hover:bg-accent"
+									}`}
+									onClick={() => setBoardingType("taxi")}
+									type="button"
+								>
+									<Car size={16} />
+									Taxi
+								</button>
+							</div>
+						</div>
+
+						{/* License plate */}
+						<div>
+							<label
+								className="mb-1 block text-xs font-medium text-muted-foreground"
+								htmlFor="license-plate"
+							>
+								License Plate Number
+							</label>
+							<input
+								autoCapitalize="characters"
+								autoComplete="off"
+								className="h-10 w-full rounded-xl border border-input bg-muted px-3 font-mono text-sm uppercase text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:bg-background focus:ring-2 focus:ring-ring/20"
+								id="license-plate"
+								maxLength={20}
+								onChange={(e) => setLicensePlate(e.target.value)}
+								placeholder="e.g. 1234AB"
+								type="text"
+								value={licensePlate}
+							/>
+						</div>
+
+						{/* Route number — JUTC only */}
+						{boardingType === "jutc" && (
+							<div>
+								<label
+									className="mb-1 block text-xs font-medium text-muted-foreground"
+									htmlFor="route-number"
+								>
+									Bus Route Number
+								</label>
+								<select
+									className="h-10 w-full rounded-xl border border-input bg-muted px-3 text-sm text-foreground outline-none transition-colors focus:border-ring focus:bg-background focus:ring-2 focus:ring-ring/20"
+									id="route-number"
+									onChange={(e) => setRouteNumber(e.target.value)}
+									value={routeNumber}
+								>
+									<option value="">Select route…</option>
+									{JUTC_ROUTES.map((r) => (
+										<option key={r.route} value={r.route}>
+											{r.route} — {r.origin} → {r.destination}
+										</option>
+									))}
+								</select>
+							</div>
+						)}
+
+						{/* Info callout */}
+						<div className="rounded-xl border border-blue-100 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+							<p className="text-xs leading-relaxed text-blue-700 dark:text-blue-400">
+								<Radio className="mr-1 inline -translate-y-px" size={12} />
+								Your location will be shared anonymously while you ride, helping
+								other commuters see live vehicle positions.
+							</p>
+						</div>
+
+						{/* Start tracking */}
+						<Button
+							className="mt-1 h-11 w-full rounded-xl bg-green-600 text-sm font-semibold text-white shadow-md shadow-green-600/25 transition-all hover:bg-green-700 hover:shadow-lg disabled:opacity-50 disabled:shadow-none"
+							disabled={isBoardDisabled}
+							onClick={handleStartTracking}
+							type="button"
+						>
+							{isBoardingLoading ? (
+								<>
+									<div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+									Starting…
+								</>
+							) : (
+								<>
+									<Radio size={15} />
+									Start Tracking
+								</>
+							)}
+						</Button>
+					</div>
+				</DrawerContent>
+			);
+		}
+
+		/* ── TRACKING (compact bar) ─────────────── */
+		if (view === "tracking") {
+			return (
+				<DrawerContent
+					className="bg-background/95 backdrop-blur-xl"
+					onClick={() => {
+						if (trackingMinimized) setTrackingMinimized(false);
+					}}
+					style={{ zIndex: 1011 }}
+				>
+					<DrawerTitle className="sr-only">Live Tracking</DrawerTitle>
+					<DrawerDescription className="sr-only">
+						Currently broadcasting your position
+					</DrawerDescription>
+					<div
+						className={`flex items-center gap-3 px-4 py-2 transition-opacity duration-200 ${
+							trackingMinimized
+								? "pointer-events-none opacity-0"
+								: "opacity-100"
+						}`}
+					>
+						{/* Live dot */}
+						<div className="relative flex shrink-0">
+							<span className="inline-flex h-3 w-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
+						</div>
+
+						{/* Vehicle + destination info */}
+						<div className="min-w-0 flex-1">
+							<p className="truncate text-sm font-semibold text-foreground">
+								{boardingType === "jutc"
+									? `JUTC Bus ${routeNumber}`
+									: `Taxi ${licensePlate.toUpperCase()}`}
+							</p>
+							{selectedTo && (
+								<p className="truncate text-xs text-muted-foreground">
+									To: {selectedTo.name}
+								</p>
+							)}
+						</div>
+
+						{/* Elapsed time */}
+						<p className="shrink-0 font-mono text-lg font-bold text-emerald-600 dark:text-emerald-400">
+							{formatElapsed(trackingElapsed)}
+						</p>
+
+						{/* Minimize */}
+						<button
+							aria-label="Minimize tracking bar"
+							className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted"
+							onClick={() => setTrackingMinimized(true)}
+							type="button"
+						>
+							<ChevronDown size={16} />
+						</button>
+
+						{/* Stop */}
+						<Button
+							className="h-9 shrink-0 rounded-xl bg-destructive px-3 text-xs font-semibold text-destructive-foreground shadow-md transition-all hover:bg-destructive/90 hover:shadow-lg"
+							onClick={handleStopTracking}
+							type="button"
+						>
+							<Square size={12} />
+							Stop
+						</Button>
+					</div>
+				</DrawerContent>
+			);
+		}
+
+		return null;
+	};
+
+	return (
+		<Drawer
+			onOpenChange={handleOpenChange}
+			open={open || !canClose}
+			shouldScaleBackground={false}
+		>
+			{canClose && triggerButton}
+			{renderContent()}
+		</Drawer>
 	);
 }
