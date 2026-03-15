@@ -89,7 +89,10 @@ async function fetchRoutes(
 			from: leg.from,
 			to: leg.to,
 			mode: leg.mode as "walk" | "jutc" | "taxi",
-			type: leg.mode === "taxi" ? "robot_taxi" as const : leg.mode as "walk" | "jutc",
+			type:
+				leg.mode === "taxi"
+					? ("robot_taxi" as const)
+					: (leg.mode as "walk" | "jutc"),
 			vehicleName: leg.vehicleName,
 			cost: leg.cost,
 			duration: leg.duration,
@@ -349,13 +352,17 @@ function NavigatingPanel({
 
 	// Remaining legs summary
 	const remainingLegs = activeTrip.legs.slice(activeTrip.currentLegIndex + 1);
-	const remainingDuration = remainingLegs.reduce((s, l) => s + l.duration, 0) + currentLeg.duration;
+	const remainingDuration =
+		remainingLegs.reduce((s, l) => s + l.duration, 0) + currentLeg.duration;
 
 	return (
 		<div className="flex h-full flex-col">
 			{/* Header */}
 			<div className="flex items-center gap-3 border-gray-100 border-b px-4 py-3 dark:border-neutral-700">
-				<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm" style={{ backgroundColor: iconBg }}>
+				<div
+					className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm"
+					style={{ backgroundColor: iconBg }}
+				>
 					<LegIcon color="white" size={14} />
 				</div>
 				<div className="min-w-0 flex-1">
@@ -376,7 +383,10 @@ function NavigatingPanel({
 				<div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 dark:border-neutral-700 dark:bg-neutral-800/50">
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
-							<Clock className="text-gray-400 dark:text-neutral-500" size={14} />
+							<Clock
+								className="text-gray-400 dark:text-neutral-500"
+								size={14}
+							/>
 							<span className="font-medium text-gray-700 text-sm dark:text-neutral-300">
 								~{currentLeg.duration} min
 							</span>
@@ -389,12 +399,18 @@ function NavigatingPanel({
 					</div>
 					{!isWalk && (
 						<p className="mt-2 text-gray-500 text-xs dark:text-neutral-400">
-							{isBus ? "Board the bus at" : "Take the taxi at"} <span className="font-medium text-gray-700 dark:text-neutral-300">{currentLeg.from}</span>
+							{isBus ? "Board the bus at" : "Take the taxi at"}{" "}
+							<span className="font-medium text-gray-700 dark:text-neutral-300">
+								{currentLeg.from}
+							</span>
 						</p>
 					)}
 					{isWalk && (
 						<p className="mt-2 text-gray-500 text-xs dark:text-neutral-400">
-							Walk to <span className="font-medium text-gray-700 dark:text-neutral-300">{currentLeg.to}</span>
+							Walk to{" "}
+							<span className="font-medium text-gray-700 dark:text-neutral-300">
+								{currentLeg.to}
+							</span>
 						</p>
 					)}
 				</div>
@@ -407,14 +423,28 @@ function NavigatingPanel({
 						</p>
 						<div className="space-y-1.5">
 							{remainingLegs.map((leg) => {
-								const NextIcon = leg.mode === "jutc" ? Bus : leg.mode === "taxi" ? Car : Footprints;
+								const NextIcon =
+									leg.mode === "jutc"
+										? Bus
+										: leg.mode === "taxi"
+											? Car
+											: Footprints;
 								return (
-									<div className="flex items-center gap-2 rounded-lg bg-gray-50 px-2.5 py-1.5 dark:bg-neutral-800" key={leg.legNumber}>
-										<NextIcon className="text-gray-400 dark:text-neutral-500" size={12} />
+									<div
+										className="flex items-center gap-2 rounded-lg bg-gray-50 px-2.5 py-1.5 dark:bg-neutral-800"
+										key={leg.legNumber}
+									>
+										<NextIcon
+											className="text-gray-400 dark:text-neutral-500"
+											size={12}
+										/>
 										<span className="flex-1 truncate text-gray-600 text-xs dark:text-neutral-400">
 											{leg.vehicleName} → {leg.to}
 										</span>
-										<ChevronRight className="text-gray-300 dark:text-neutral-600" size={12} />
+										<ChevronRight
+											className="text-gray-300 dark:text-neutral-600"
+											size={12}
+										/>
 									</div>
 								);
 							})}
@@ -433,7 +463,10 @@ function NavigatingPanel({
 						</span>
 					</div>
 					<div className="flex items-center gap-1.5">
-						<DollarSign className="text-gray-400 dark:text-neutral-500" size={14} />
+						<DollarSign
+							className="text-gray-400 dark:text-neutral-500"
+							size={14}
+						/>
 						<span className="font-semibold text-gray-900 text-sm dark:text-neutral-100">
 							JMD ${route.totalCost.toLocaleString()}
 						</span>
@@ -464,7 +497,13 @@ function getSlideClass(
 	if (currentView === targetView) {
 		return "translate-x-0";
 	}
-	const viewOrder: DrawerView[] = ["search", "results", "navigating", "boarding", "tracking"];
+	const viewOrder: DrawerView[] = [
+		"search",
+		"results",
+		"navigating",
+		"boarding",
+		"tracking",
+	];
 	const currentIdx = viewOrder.indexOf(currentView);
 	const targetIdx = viewOrder.indexOf(targetView);
 

@@ -7,51 +7,51 @@
  */
 
 import {
-  type LatLng,
-  type RouteGeometryResult,
   estimateWalk,
   fetchDrivingRoute,
   haversineKm,
+  type LatLng,
+  type RouteGeometryResult,
 } from "./osrm";
 import {
-  type GraphEdge,
-  type TransitMode,
   findNearbyNodes,
+  type GraphEdge,
   getTransitGraph,
+  type TransitMode,
 } from "./transit-graph";
 
 /* ── Public types ───────────────────────────────── */
 
 export interface RouteLeg {
-  legNumber: number;
-  from: string;
-  to: string;
-  mode: TransitMode;
-  vehicleName: string;
   cost: number;
   duration: number; // minutes
+  from: string;
   geometry: LatLng[];
+  legNumber: number;
+  mode: TransitMode;
+  to: string;
+  vehicleName: string;
 }
 
 export interface PlannedRoute {
-  id: string;
   destination: string;
+  id: string;
   legs: RouteLeg[];
-  totalCost: number;
-  totalDuration: number; // minutes
   /** Lower is better */
   score: number;
   tag: string; // "Fastest" | "Cheapest" | "Fewest Transfers"
+  totalCost: number;
+  totalDuration: number; // minutes
 }
 
 /* ── Dijkstra ───────────────────────────────────── */
 
 interface DijkstraState {
-  nodeId: string;
   cost: number;
-  time: number;
-  prev: string | null;
   edge: GraphEdge | null;
+  nodeId: string;
+  prev: string | null;
+  time: number;
 }
 
 /**
@@ -60,8 +60,12 @@ interface DijkstraState {
  * nodes near the destination.
  */
 function dijkstra(
-  originNodeIds: Array<{ nodeId: string; walkMinutes: number; walkDistKm: number }>,
-  optimise: "time" | "cost",
+  originNodeIds: Array<{
+    nodeId: string;
+    walkMinutes: number;
+    walkDistKm: number;
+  }>,
+  optimise: "time" | "cost"
 ): Map<string, DijkstraState> {
   const graph = getTransitGraph();
   const best = new Map<string, DijkstraState>();
@@ -89,7 +93,10 @@ function dijkstra(
     const currentBest = best.get(current.nodeId);
 
     // Skip if we've already found a better path
-    if (currentBest && weight(currentBest, optimise) < weight(current, optimise)) {
+    if (
+      currentBest &&
+      weight(currentBest, optimise) < weight(current, optimise)
+    ) {
       continue;
     }
 
@@ -106,7 +113,10 @@ function dijkstra(
       };
 
       const existing = best.get(edge.to);
-      if (!existing || weight(newState, optimise) < weight(existing, optimise)) {
+      if (
+        !existing ||
+        weight(newState, optimise) < weight(existing, optimise)
+      ) {
         best.set(edge.to, newState);
         queue.push(newState);
         // Re-sort (good enough for small graph)
@@ -126,7 +136,7 @@ function weight(s: DijkstraState, optimise: "time" | "cost"): number {
 
 function reconstructPath(
   best: Map<string, DijkstraState>,
-  targetNodeId: string,
+  targetNodeId: string
 ): GraphEdge[] {
   const path: GraphEdge[] = [];
   let current = targetNodeId;
@@ -180,7 +190,8 @@ function mergeEdgesIntoLegs(edges: GraphEdge[]): Array<{
   // Collect waypoints for the first edge
   const fromNode = graph.nodes.get(edges[0]!.from);
   const toNode = graph.nodes.get(edges[0]!.to);
-  if (fromNode) currentLeg.waypoints.push({ lat: fromNode.lat, lng: fromNode.lng });
+  if (fromNode)
+    currentLeg.waypoints.push({ lat: fromNode.lat, lng: fromNode.lng });
   if (toNode) currentLeg.waypoints.push({ lat: toNode.lat, lng: toNode.lng });
 
   for (let i = 1; i < edges.length; i++) {
@@ -197,7 +208,8 @@ function mergeEdgesIntoLegs(edges: GraphEdge[]): Array<{
         currentLeg.costJmd += edge.costJmd;
       }
       const nextNode = graph.nodes.get(edge.to);
-      if (nextNode) currentLeg.waypoints.push({ lat: nextNode.lat, lng: nextNode.lng });
+      if (nextNode)
+        currentLeg.waypoints.push({ lat: nextNode.lat, lng: nextNode.lng });
     } else {
       // Push current leg and start new one
       merged.push(currentLeg);
@@ -225,12 +237,15 @@ function mergeEdgesIntoLegs(edges: GraphEdge[]): Array<{
 
 async function resolveGeometry(
   waypoints: LatLng[],
-  mode: TransitMode,
+  mode: TransitMode
 ): Promise<RouteGeometryResult> {
   if (mode === "walk") {
     // Road-snapped walk via OSRM driving profile with walking speed
     if (waypoints.length >= 2) {
-      return estimateWalk(waypoints[0] as LatLng, waypoints[waypoints.length - 1] as LatLng);
+      return estimateWalk(
+        waypoints[0] as LatLng,
+        waypoints[waypoints.length - 1] as LatLng
+      );
     }
     return { geometry: waypoints, distanceMetres: 0, durationSeconds: 0 };
   }
@@ -247,48 +262,64 @@ const MAX_WALK_TO_STOP_KM = 3;
 
 export async function planRoutes(
   origin: LatLng,
-  destination: LatLng,
+  destination: LatLng
 ): Promise<PlannedRoute[]> {
   const graph = getTransitGraph();
 
   // 1. Find stops/stands near origin and destination
-  const nearOrigin = findNearbyNodes(origin, MAX_WALK_TO_STOP_KM).slice(0, MAX_NEARBY_NODES);
-  const nearDest = findNearbyNodes(destination, MAX_WALK_TO_STOP_KM).slice(0, MAX_NEARBY_NODES);
+  const nearOrigin = findNearbyNodes(origin, MAX_WALK_TO_STOP_KM).slice(
+    0,
+    MAX_NEARBY_NODES
+  );
+  const nearDest = findNearbyNodes(destination, MAX_WALK_TO_STOP_KM).slice(
+    0,
+    MAX_NEARBY_NODES
+  );
 
   if (nearOrigin.length === 0 || nearDest.length === 0) {
     // No transit available — return a walk-only route
     const walk = await estimateWalk(origin, destination);
-    return [{
-      id: "walk-only",
-      destination: "Destination",
-      legs: [{
-        legNumber: 1,
-        from: "Your location",
-        to: "Destination",
-        mode: "walk",
-        vehicleName: "Walking",
-        cost: 0,
-        duration: Math.round(walk.durationSeconds / 60),
-        geometry: walk.geometry,
-      }],
-      totalCost: 0,
-      totalDuration: Math.round(walk.durationSeconds / 60),
-      score: walk.durationSeconds / 60,
-      tag: "Walk Only",
-    }];
+    return [
+      {
+        id: "walk-only",
+        destination: "Destination",
+        legs: [
+          {
+            legNumber: 1,
+            from: "Your location",
+            to: "Destination",
+            mode: "walk",
+            vehicleName: "Walking",
+            cost: 0,
+            duration: Math.round(walk.durationSeconds / 60),
+            geometry: walk.geometry,
+          },
+        ],
+        totalCost: 0,
+        totalDuration: Math.round(walk.durationSeconds / 60),
+        score: walk.durationSeconds / 60,
+        tag: "Walk Only",
+      },
+    ];
   }
 
   // 2. Prepare origin seeds with walk time (road-factor 1.4× haversine)
   const originSeeds = nearOrigin.map(({ nodeId, distKm }) => {
     const roadDistKm = distKm * 1.4;
-    const walkMinutes = Math.max(1, Math.round((roadDistKm / WALK_SPEED_KMH) * 60));
+    const walkMinutes = Math.max(
+      1,
+      Math.round((roadDistKm / WALK_SPEED_KMH) * 60)
+    );
     return { nodeId, walkMinutes, walkDistKm: roadDistKm };
   });
 
   // Also prepare destination seeds for the reverse-scoring below
   const destSeeds = nearDest.map(({ nodeId, distKm }) => {
     const roadDistKm = distKm * 1.4;
-    const walkMinutes = Math.max(1, Math.round((roadDistKm / WALK_SPEED_KMH) * 60));
+    const walkMinutes = Math.max(
+      1,
+      Math.round((roadDistKm / WALK_SPEED_KMH) * 60)
+    );
     return { nodeId, walkMinutes };
   });
   const destWalkMap = new Map(destSeeds.map((s) => [s.nodeId, s.walkMinutes]));
@@ -371,11 +402,12 @@ export async function planRoutes(
         from: fromNode?.name ?? leg.from,
         to: toNode?.name ?? leg.to,
         mode: leg.mode,
-        vehicleName: leg.mode === "jutc"
-          ? leg.label
-          : leg.mode === "taxi"
-            ? "Route Taxi"
-            : "Walking",
+        vehicleName:
+          leg.mode === "jutc"
+            ? leg.label
+            : leg.mode === "taxi"
+              ? "Route Taxi"
+              : "Walking",
         cost: leg.costJmd,
         duration: Math.max(1, leg.durationMinutes),
         geometry: geo.geometry,
@@ -405,9 +437,10 @@ export async function planRoutes(
     const transferCount = legs.filter((l) => l.mode !== "walk").length;
 
     // Score: weighted combination of time, cost, and transfers
-    const score = strategy.key === "time"
-      ? totalDuration + transferCount * 5
-      : totalCost * 0.01 + totalDuration * 0.5 + transferCount * 3;
+    const score =
+      strategy.key === "time"
+        ? totalDuration + transferCount * 5
+        : totalCost * 0.01 + totalDuration * 0.5 + transferCount * 3;
 
     candidates.push({
       id: `route-${strategy.tag.toLowerCase()}`,

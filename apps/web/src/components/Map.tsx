@@ -20,6 +20,7 @@ interface RouteLeg {
 }
 
 interface ActiveTrip {
+	currentLegIndex: number;
 	legs: Array<{
 		mode: "walk" | "jutc" | "taxi";
 		vehicleName: string;
@@ -27,7 +28,6 @@ interface ActiveTrip {
 		to: string;
 		geometry: LatLng[];
 	}>;
-	currentLegIndex: number;
 }
 
 interface WebMapProps {
@@ -941,7 +941,11 @@ function MapLibreInner({
 
 			{/* Real GPS user location dot */}
 			{userLocation && (
-				<Marker anchor="center" latitude={userLocation.lat} longitude={userLocation.lng}>
+				<Marker
+					anchor="center"
+					latitude={userLocation.lat}
+					longitude={userLocation.lng}
+				>
 					<div className="relative flex items-center justify-center">
 						{/* Pulsing halo */}
 						<div className="absolute h-10 w-10 animate-ping rounded-full bg-blue-400/20" />
@@ -954,50 +958,67 @@ function MapLibreInner({
 			)}
 
 			{/* Highlighted next vehicle to board */}
-			{activeTrip && (() => {
-				const leg = activeTrip.legs[activeTrip.currentLegIndex];
-				if (!leg || leg.mode === "walk") return null;
+			{activeTrip &&
+				(() => {
+					const leg = activeTrip.legs[activeTrip.currentLegIndex];
+					if (!leg || leg.mode === "walk") return null;
 
-				// Find the pickup stop coordinates (first point of the leg geometry)
-				const pickupPoint = leg.geometry[0];
+					// Find the pickup stop coordinates (first point of the leg geometry)
+					const pickupPoint = leg.geometry[0];
 
-				// Match a simulated vehicle by route name substring
-				const routeKeyword = leg.vehicleName.replace(/^JUTC\s*/, "").replace(/^Route Taxi\s*/, "").trim();
-				const matchedVehicle = vehicles.find((v) => {
-					const vRoute = v.route ?? "";
-					const vName = v.name ?? "";
-					if (leg.mode === "jutc" && v.type !== "jutc") return false;
-					if (leg.mode === "taxi" && v.type !== "robot_taxi") return false;
-					return vRoute.includes(routeKeyword) || vName.includes(routeKeyword);
-				});
+					// Match a simulated vehicle by route name substring
+					const routeKeyword = leg.vehicleName
+						.replace(/^JUTC\s*/, "")
+						.replace(/^Route Taxi\s*/, "")
+						.trim();
+					const matchedVehicle = vehicles.find((v) => {
+						const vRoute = v.route ?? "";
+						const vName = v.name ?? "";
+						if (leg.mode === "jutc" && v.type !== "jutc") return false;
+						if (leg.mode === "taxi" && v.type !== "robot_taxi") return false;
+						return (
+							vRoute.includes(routeKeyword) || vName.includes(routeKeyword)
+						);
+					});
 
-				return (
-					<>
-						{/* Pulsing ring around the matched vehicle */}
-						{matchedVehicle && (
-							<Marker anchor="center" latitude={matchedVehicle.lat} longitude={matchedVehicle.lng}>
-								<div className="relative flex items-center justify-center">
-									<div className="absolute h-14 w-14 animate-ping rounded-full border-2 border-green-400/60" />
-									<div className="absolute h-12 w-12 rounded-full border-3 border-green-500/80" />
-								</div>
-							</Marker>
-						)}
-
-						{/* "Board Here" marker at the pickup stop */}
-						{pickupPoint && (
-							<Marker anchor="bottom" latitude={pickupPoint.lat} longitude={pickupPoint.lng}>
-								<div className="flex flex-col items-center">
-									<div className="rounded-lg bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-lg">
-										<MapPin className="mr-0.5 inline -translate-y-px" size={10} />
-										Board Here
+					return (
+						<>
+							{/* Pulsing ring around the matched vehicle */}
+							{matchedVehicle && (
+								<Marker
+									anchor="center"
+									latitude={matchedVehicle.lat}
+									longitude={matchedVehicle.lng}
+								>
+									<div className="relative flex items-center justify-center">
+										<div className="absolute h-14 w-14 animate-ping rounded-full border-2 border-green-400/60" />
+										<div className="absolute h-12 w-12 rounded-full border-3 border-green-500/80" />
 									</div>
-									<div className="h-2 w-0.5 bg-green-500" />
-								</div>
-							</Marker>
-						)}
-					</>
-				);
-			})()}
+								</Marker>
+							)}
+
+							{/* "Board Here" marker at the pickup stop */}
+							{pickupPoint && (
+								<Marker
+									anchor="bottom"
+									latitude={pickupPoint.lat}
+									longitude={pickupPoint.lng}
+								>
+									<div className="flex flex-col items-center">
+										<div className="rounded-lg bg-green-500 px-2 py-1 text-xs font-bold text-white shadow-lg">
+											<MapPin
+												className="mr-0.5 inline -translate-y-px"
+												size={10}
+											/>
+											Board Here
+										</div>
+										<div className="h-2 w-0.5 bg-green-500" />
+									</div>
+								</Marker>
+							)}
+						</>
+					);
+				})()}
 
 			{/* Vehicle info popup */}
 			{selectedVehicle && (

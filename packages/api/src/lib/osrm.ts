@@ -11,12 +11,12 @@ export interface LatLng {
 }
 
 export interface RouteGeometryResult {
-  /** Road-snapped coordinates */
-  geometry: LatLng[];
   /** Travel distance in metres */
   distanceMetres: number;
   /** Travel duration in seconds */
   durationSeconds: number;
+  /** Road-snapped coordinates */
+  geometry: LatLng[];
 }
 
 /* ── Constants ──────────────────────────────────── */
@@ -37,9 +37,9 @@ export function haversineKm(a: LatLng, b: LatLng): number {
   const h =
     sinHalfLat * sinHalfLat +
     Math.cos(a.lat * DEG_TO_RAD) *
-      Math.cos(b.lat * DEG_TO_RAD) *
-      sinHalfLng *
-      sinHalfLng;
+    Math.cos(b.lat * DEG_TO_RAD) *
+    sinHalfLng *
+    sinHalfLng;
   return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
@@ -53,7 +53,7 @@ export function haversineKm(a: LatLng, b: LatLng): number {
  */
 export async function estimateWalk(
   from: LatLng,
-  to: LatLng,
+  to: LatLng
 ): Promise<RouteGeometryResult> {
   const straightKm = haversineKm(from, to);
 
@@ -104,7 +104,7 @@ function sampleEvenly<T>(arr: T[], n: number): T[] {
  */
 export async function fetchDrivingRoute(
   waypoints: LatLng[],
-  attempt = 0,
+  attempt = 0
 ): Promise<RouteGeometryResult> {
   if (waypoints.length < 2) {
     return {
@@ -115,7 +115,8 @@ export async function fetchDrivingRoute(
   }
 
   // OSRM demo server caps at ~25 waypoints
-  const sampled = waypoints.length > 25 ? sampleEvenly(waypoints, 25) : waypoints;
+  const sampled =
+    waypoints.length > 25 ? sampleEvenly(waypoints, 25) : waypoints;
   const coordStr = sampled.map((c) => `${c.lng},${c.lat}`).join(";");
   const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson`;
 
@@ -131,7 +132,13 @@ export async function fetchDrivingRoute(
       return fallback(waypoints);
     }
 
-    const json = (await res.json()) as { routes?: Array<{ geometry?: { coordinates?: [number, number][] }; distance?: number; duration?: number }> };
+    const json = (await res.json()) as {
+      routes?: Array<{
+        geometry?: { coordinates?: [number, number][] };
+        distance?: number;
+        duration?: number;
+      }>;
+    };
     const route = json?.routes?.[0];
     const coords = route?.geometry?.coordinates;
 
