@@ -2,10 +2,13 @@
 
 import { ArrowRight, Car, Clock, Map as MapIcon } from "lucide-react";
 import Link from "next/link";
+import { useTheme } from "next-themes";
 import WebMap from "@/components/Map";
 import Navigation from "@/components/navigation";
 
 export default function Home() {
+	const { resolvedTheme } = useTheme();
+	const isDark = resolvedTheme === "dark";
 	return (
 		<div className="flex-1 bg-white pb-20 font-sans text-blue-600 transition-colors duration-500 selection:bg-blue-600 selection:text-white dark:bg-transparent dark:text-blue-300">
 			{/* Navigation */}
@@ -14,12 +17,12 @@ export default function Home() {
 			{/* Hero Section */}
 			<main className="mx-auto max-w-7xl items-center px-8 pt-16 lg:grid lg:grid-cols-2 lg:gap-16">
 				<div>
-					<h1 className="mb-6 font-bold text-5xl text-blue-900 leading-tight tracking-tight md:text-6xl">
+					<h1 className="mb-6 font-bold text-5xl text-blue-900 leading-tight tracking-tight md:text-6xl dark:text-blue-400">
 						Know the true
 						<br />
 						arrival time.
 					</h1>
-					<p className="mb-10 max-w-lg text-blue-800/80 text-lg leading-relaxed">
+					<p className="mb-10 max-w-lg text-blue-800/80 text-lg leading-relaxed dark:text-slate-300">
 						One and Move uses real-time location tracking to detect the exact
 						location of JUTC buses and private taxis, so you can commute
 						securely and safely.
@@ -73,7 +76,7 @@ export default function Home() {
 				{/* Right side Visual (Interactive Map) */}
 				<div className="mt-12 flex w-full flex-col items-center justify-center gap-6 lg:mt-0 lg:h-full">
 					<div className="relative flex aspect-square w-full max-w-md overflow-hidden rounded-2xl border border-blue-200 bg-zinc-100 shadow-xl dark:border-slate-800 dark:bg-slate-900">
-						<WebMap />
+						<WebMap darkMode={isDark} key={String(isDark)} />
 					</div>
 
 					{/* Interactive Route Menu Strip */}
