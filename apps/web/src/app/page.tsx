@@ -15,13 +15,14 @@ export default function Home() {
 			<main className="mx-auto max-w-7xl items-center px-8 pt-16 lg:grid lg:grid-cols-2 lg:gap-16">
 				<div>
 					<h1 className="mb-6 font-bold text-5xl text-blue-900 leading-tight tracking-tight md:text-6xl">
-						Know the true<br/>
-            arrival time.
+						Know the true
+						<br />
+						arrival time.
 					</h1>
 					<p className="mb-10 max-w-lg text-blue-800/80 text-lg leading-relaxed">
 						One and Move uses real-time location tracking to detect the exact
-						location of JUTC buses and private taxis, so you can commute securely
-						and safely.
+						location of JUTC buses and private taxis, so you can commute
+						securely and safely.
 					</p>
 
 					<div className="mb-16 flex flex-wrap items-center gap-4">
@@ -150,8 +151,8 @@ export default function Home() {
 							Crowdsourced Tracking
 						</h3>
 						<p className="text-blue-800/70 text-base leading-relaxed dark:text-slate-400">
-							Riders on board report their vehicle in real time, keeping the
-							map accurate even where GPS coverage is sparse.
+							Riders on board report their vehicle in real time, keeping the map
+							accurate even where GPS coverage is sparse.
 						</p>
 					</div>
 				</div>
@@ -177,7 +178,8 @@ export default function Home() {
 							Open the map
 						</h3>
 						<p className="text-blue-800/70 text-base leading-relaxed dark:text-slate-400">
-							See JUTC buses and robot taxis moving in real time across Kingston and beyond, updated continuously by crowdsourced riders.
+							See JUTC buses and robot taxis moving in real time across Kingston
+							and beyond, updated continuously by crowdsourced riders.
 						</p>
 					</div>
 
@@ -189,7 +191,8 @@ export default function Home() {
 							Plan your trip
 						</h3>
 						<p className="text-blue-800/70 text-base leading-relaxed dark:text-slate-400">
-							Enter your destination and get a multi-leg route combining JUTC buses and robot taxis — with fare estimates and travel time.
+							Enter your destination and get a multi-leg route combining JUTC
+							buses and robot taxis — with fare estimates and travel time.
 						</p>
 					</div>
 
@@ -201,7 +204,8 @@ export default function Home() {
 							Board and contribute
 						</h3>
 						<p className="text-blue-800/70 text-base leading-relaxed dark:text-slate-400">
-							When you board, tap "I'm on this vehicle" to share your live location — helping every other commuter behind you.
+							When you board, tap "I'm on this vehicle" to share your live
+							location — helping every other commuter behind you.
 						</p>
 					</div>
 				</div>
@@ -228,22 +232,34 @@ export default function Home() {
 						</p>
 						<ul className="space-y-2 text-blue-800/70 text-sm dark:text-slate-400">
 							<li>
-								<Link className="transition-colors hover:text-blue-600 dark:hover:text-blue-400" href="/">
+								<Link
+									className="transition-colors hover:text-blue-600 dark:hover:text-blue-400"
+									href="/"
+								>
 									Home
 								</Link>
 							</li>
 							<li>
-								<Link className="transition-colors hover:text-blue-600 dark:hover:text-blue-400" href="/map">
+								<Link
+									className="transition-colors hover:text-blue-600 dark:hover:text-blue-400"
+									href="/map"
+								>
 									Live Map
 								</Link>
 							</li>
 							<li>
-								<Link className="transition-colors hover:text-blue-600 dark:hover:text-blue-400" href="#features">
+								<Link
+									className="transition-colors hover:text-blue-600 dark:hover:text-blue-400"
+									href="#features"
+								>
 									Features
 								</Link>
 							</li>
 							<li>
-								<Link className="transition-colors hover:text-blue-600 dark:hover:text-blue-400" href="#how-it-works">
+								<Link
+									className="transition-colors hover:text-blue-600 dark:hover:text-blue-400"
+									href="#how-it-works"
+								>
 									How it works
 								</Link>
 							</li>
