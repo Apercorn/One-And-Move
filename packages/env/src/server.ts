@@ -15,6 +15,7 @@ export const env = createEnv({
     FACEBOOK_CLIENT_ID: z.string().optional(),
     FACEBOOK_CLIENT_SECRET: z.string().optional(),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+    LOCATION_IQ_TOKEN: z.string().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

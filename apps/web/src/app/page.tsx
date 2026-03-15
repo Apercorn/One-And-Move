@@ -14,11 +14,12 @@ export default function Home() {
 			<main className="mx-auto max-w-7xl items-center px-8 pt-16 lg:grid lg:grid-cols-2 lg:gap-16">
 				<div>
 					<h1 className="mb-6 font-bold text-5xl text-blue-900 leading-tight tracking-tight md:text-6xl">
-						Master your commute with precise tracking.
+						Know the true
+            arrival time.
 					</h1>
 					<p className="mb-10 max-w-lg text-blue-800/80 text-lg leading-relaxed">
-						One & Move uses real-time location tracking to detect form exactly
-						where JUTC buses and robot taxis are, so you can commute securely
+						One and Move uses real-time location tracking to detect the exact
+						location of JUTC buses and private taxis, so you can commute securely
 						and safely.
 					</p>
 

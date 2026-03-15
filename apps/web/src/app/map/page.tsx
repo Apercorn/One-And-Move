@@ -14,7 +14,7 @@ export default async function MapPage() {
 	}
 
 	return (
-		<div className="h-[100svh] max-h-[100svh] flex-1 overflow-hidden">
+		<div className="fixed inset-0 overflow-hidden">
 			<TransitMap />
 		</div>
 	);
