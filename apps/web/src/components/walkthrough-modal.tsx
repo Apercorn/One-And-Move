@@ -162,7 +162,7 @@ function StepGps() {
 				Enable Location Access
 			</h2>
 			<p className="mb-4 max-w-sm text-sm leading-relaxed text-gray-600 dark:text-neutral-400">
-				OneAndMove needs your GPS location to show nearby buses and taxis in
+				One And Move needs your GPS location to show nearby buses and taxis in
 				real time. Your location stays <strong>private</strong> — it's only used
 				on your device to display the map accurately.
 			</p>

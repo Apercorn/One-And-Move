@@ -459,19 +459,19 @@ export default function TripDrawer({
 		(boardingType === "jutc" && !routeNumber) ||
 		isBoardingLoading;
 
-	/* ── Prevent close for tracking / navigating ── */
-	const canClose = view !== "tracking" && view !== "navigating";
+	/* ── Allow closing drawer for all views ── */
+	const canClose = true;
 
 	const handleOpenChange = useCallback(
 		(nextOpen: boolean) => {
-			if (!nextOpen && !canClose) return;
-			if (!nextOpen) {
-				handleClose();
-			} else {
+			if (nextOpen) {
 				setOpen(true);
+			} else {
+				// Just close without clearing state
+				setOpen(false);
 			}
 		},
-		[canClose, handleClose]
+		[]
 	);
 
 	/* ── Trigger button (always rendered) ──────── */
@@ -499,6 +499,91 @@ export default function TripDrawer({
 					: "Plan a Trip"}
 			</button>
 		</DrawerTrigger>
+	);
+
+	/* ── Active trip pill with stop button (when navigating) ── */
+	const activeTripPill = activeTrip && route ? (
+		<div
+			className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-green-400/60 bg-green-500 px-4 py-2.5 shadow-xl backdrop-blur-xl"
+			style={{ zIndex: 1002 }}
+		>
+			<DrawerTrigger asChild>
+				<button
+					aria-label="View active trip details"
+					className="flex items-center gap-2 text-white transition-opacity hover:opacity-90"
+					type="button"
+				>
+					<div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/25">
+						<Navigation color="white" size={11} />
+					</div>
+					<div className="flex flex-col items-start gap-0.5">
+						<span className="text-xs font-semibold leading-none">
+							{activeTrip.legs[activeTrip.currentLegIndex]?.to ?? "Next stop"}
+						</span>
+						<span className="text-[10px] leading-none text-white/80">
+							Leg {activeTrip.currentLegIndex + 1}/{activeTrip.legs.length}
+						</span>
+					</div>
+				</button>
+			</DrawerTrigger>
+			<div className="mx-1 h-4 w-px bg-white/30" />
+			<button
+				aria-label="Stop trip"
+				className="flex items-center gap-1.5 rounded-lg bg-white/20 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/30"
+				onClick={(e) => {
+					e.stopPropagation();
+					handleCancelTripNav();
+				}}
+				type="button"
+			>
+				<CircleStop size={12} />
+				Stop
+			</button>
+		</div>
+	) : null;
+
+	/* ── Tracking pill (when broadcasting location) ── */
+	const trackingPill = (
+		<div
+			className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-emerald-400/60 bg-emerald-500 px-4 py-2.5 shadow-xl backdrop-blur-xl"
+			style={{ zIndex: 1002 }}
+		>
+			<DrawerTrigger asChild>
+				<button
+					aria-label="View tracking details"
+					className="flex items-center gap-2 text-white transition-opacity hover:opacity-90"
+					type="button"
+				>
+					<div className="relative flex h-6 w-6 items-center justify-center">
+						<span className="inline-flex h-6 w-6 animate-ping rounded-full bg-white/40 opacity-75" />
+						<span className="absolute inline-flex h-3 w-3 rounded-full bg-white" />
+					</div>
+					<div className="flex flex-col items-start gap-0.5">
+						<span className="text-xs font-semibold leading-none">
+							{boardingType === "jutc"
+								? `JUTC ${routeNumber}`
+								: `Taxi ${licensePlate.toUpperCase()}`}
+						</span>
+						<span className="text-[10px] leading-none text-white/80">
+							{formatElapsed(trackingElapsed)} elapsed
+						</span>
+					</div>
+				</button>
+			</DrawerTrigger>
+			<div className="mx-1 h-4 w-px bg-white/30" />
+			<button
+				aria-label="Stop tracking"
+				className="flex items-center gap-1.5 rounded-lg bg-white/20 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/30"
+				onClick={(e) => {
+					e.stopPropagation();
+					handleStopTracking();
+				}}
+				type="button"
+			>
+				<Square size={12} />
+				Stop
+			</button>
+		</div>
 	);
 
 	/* ── Render the correct drawer content ─────── */
@@ -695,7 +780,6 @@ export default function TripDrawer({
 								<button
 									aria-label="Close"
 									className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-									onClick={handleClose}
 									type="button"
 								>
 									<X size={18} />
@@ -958,7 +1042,6 @@ export default function TripDrawer({
 								<button
 									aria-label="Close"
 									className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-									onClick={handleClose}
 									type="button"
 								>
 									<X size={18} />
@@ -1154,11 +1237,16 @@ export default function TripDrawer({
 
 	return (
 		<Drawer
+			modal={false}
 			onOpenChange={handleOpenChange}
-			open={open || !canClose}
+			open={open}
 			shouldScaleBackground={false}
 		>
-			{canClose && triggerButton}
+			{view === "navigating" && activeTrip
+				? activeTripPill
+				: view === "tracking"
+					? trackingPill
+					: triggerButton}
 			{renderContent()}
 		</Drawer>
 	);

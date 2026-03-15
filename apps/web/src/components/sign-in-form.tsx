@@ -68,7 +68,7 @@ export default function SignInForm({
 			<h1 className="mb-6 text-center font-bold text-3xl">Welcome Back</h1>
 
 			<Button
-				className="flex w-full items-center justify-center gap-2 border-2 border-slate-300 py-6 font-semibold text-base text-slate-700 transition-colors hover:bg-slate-50"
+				className="flex w-full items-center justify-center gap-2 border-2 py-6 font-semibold text-base transition-colors"
 				onClick={handleGoogleSignIn}
 				type="button"
 				variant="outline"
@@ -100,10 +100,10 @@ export default function SignInForm({
 
 			<div className="relative my-6">
 				<div className="absolute inset-0 flex items-center">
-					<span className="w-full border-blue-200 border-t" />
+					<span className="w-full border-border border-t" />
 				</div>
 				<div className="relative flex justify-center text-xs uppercase">
-					<span className="bg-white px-2 font-semibold text-blue-600">
+					<span className="bg-card px-2 font-semibold text-muted-foreground">
 						Or continue with email
 					</span>
 				</div>
@@ -123,7 +123,6 @@ export default function SignInForm({
 							<div className="space-y-2">
 								<Label htmlFor={field.name}>Email</Label>
 								<Input
-									className="border-2 border-slate-300 focus-visible:border-blue-600 focus-visible:ring-blue-600"
 									id={field.name}
 									name={field.name}
 									onBlur={field.handleBlur}
@@ -147,7 +146,6 @@ export default function SignInForm({
 							<div className="space-y-2">
 								<Label htmlFor={field.name}>Password</Label>
 								<Input
-									className="border-2 border-slate-300 focus-visible:border-blue-600 focus-visible:ring-blue-600"
 									id={field.name}
 									name={field.name}
 									onBlur={field.handleBlur}

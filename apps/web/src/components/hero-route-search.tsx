@@ -181,13 +181,6 @@ export default function HeroRouteSearch() {
 				/>
 			</div>
 
-			{/* Swap connector */}
-			<div className="mb-4 flex flex-col items-start gap-0.5 pl-1">
-				<div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600" />
-				<div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600" />
-				<div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600" />
-			</div>
-
 			{/* To */}
 			<div className="mb-5 relative" ref={toRef}>
 				<label

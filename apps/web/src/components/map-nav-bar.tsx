@@ -41,7 +41,7 @@ export function MapNavBar() {
 			{/* Center: app title */}
 			<div className="pointer-events-none absolute inset-x-0 flex justify-center">
 				<span className="rounded-full bg-white/80 px-4 py-1.5 font-semibold text-sm text-gray-800 shadow-lg backdrop-blur-xl dark:bg-neutral-900/80 dark:text-neutral-100">
-					OneAndMove
+					One And Move
 				</span>
 			</div>
 

@@ -25,13 +25,13 @@ function AuthForms() {
 
 export default function LoginPage() {
 	return (
-		<div className="flex min-h-screen flex-1 flex-col bg-white font-sans text-blue-900">
+		<div className="flex min-h-screen flex-1 flex-col bg-background font-sans text-foreground">
 			<Navigation />
 			<div className="flex flex-1 items-center justify-center p-4">
-				<div className="w-full max-w-md rounded-xl border border-blue-200 bg-white p-6 shadow-lg">
+				<div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg">
 					<Suspense
 						fallback={
-							<div className="text-center text-blue-600">Loading...</div>
+							<div className="text-center text-muted-foreground">Loading...</div>
 						}
 					>
 						<AuthForms />
