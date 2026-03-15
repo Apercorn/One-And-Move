@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTheme } from "next-themes";
 import WebMap from "@/components/Map";
+import { MapNavBar } from "@/components/map-nav-bar";
 import type {
 	LatLng,
 	LocationSuggestion,
@@ -10,6 +12,9 @@ import type {
 import TripDrawer from "@/components/TripDrawer";
 
 export default function TransitMap() {
+	const { resolvedTheme } = useTheme();
+	const isDark = resolvedTheme === "dark";
+
 	const [fromMarker, setFromMarker] = useState<LatLng | null>(null);
 	const [toMarker, setToMarker] = useState<LatLng | null>(null);
 	const [routePoints, setRoutePoints] = useState<LatLng[]>([]);
@@ -40,7 +45,9 @@ export default function TransitMap() {
 
 	return (
 		<div className="relative h-full w-full overflow-hidden">
+			<MapNavBar />
 			<WebMap
+				darkMode={isDark}
 				flyTo={flyTo}
 				fromMarker={fromMarker}
 				routePoints={routePoints}

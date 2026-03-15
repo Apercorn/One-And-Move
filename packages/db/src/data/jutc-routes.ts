@@ -243,37 +243,7 @@ export const JUTC_ROUTES: JutcRouteData[] = [
     type: "Premium Express Routes",
     scheduleUrl:
       "https://jutc.gov.jm/bus-route-info/timetables/PREMIUM_SCHEDULE.pdf",
-  },
-  {
-    route: "310",
-    origin: "Phoenix Park Village 1",
-    destination: "Cross Roads",
-    via: "Braeton Road, Portmore Toll Road, Half Way Tree, Knutsford Boulevard",
-    depot: "Portmore",
-    type: "Premium Express Routes",
-    scheduleUrl:
-      "https://jutc.gov.jm/bus-route-info/timetables/PREMIUM_SCHEDULE.pdf",
-  },
-  {
-    route: "309",
-    origin: "Phoenix Park Village 2",
-    destination: "Cross Roads",
-    via: "Braeton Road, Portmore Toll Road, Half Way Tree, Knutsford Boulevard",
-    depot: "Portmore",
-    type: "Premium Express Routes",
-    scheduleUrl:
-      "https://jutc.gov.jm/bus-route-info/timetables/PREMIUM_SCHEDULE.pdf",
-  },
-  {
-    route: "135",
-    origin: "Silver Sun Estate",
-    destination: "City",
-    via: "Spanish Town Toll, Half Way Tree, New Kingston, Cross Roads",
-    depot: "Portmore",
-    type: "Premium Express Routes",
-    scheduleUrl:
-      "https://jutc.gov.jm/bus-route-info/timetables/PREMIUM_SCHEDULE.pdf",
-  },
+  }
 ] as const;
 
 /** Quick lookup: route number → route data */

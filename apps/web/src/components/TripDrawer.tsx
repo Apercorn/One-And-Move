@@ -148,9 +148,9 @@ function SuggestionList({
 
 	if (isFetching && suggestions.length === 0) {
 		return (
-			<div className="absolute top-full right-0 left-0 z-50 mt-1 rounded-xl border border-gray-100 bg-white/95 px-3 py-3 shadow-lg backdrop-blur-xl">
-				<div className="flex items-center gap-2 text-gray-400 text-xs">
-					<div className="h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-blue-500" />
+			<div className="absolute top-full right-0 left-0 z-50 mt-1 rounded-xl border border-gray-100 bg-white/95 px-3 py-3 shadow-lg backdrop-blur-xl dark:border-neutral-700 dark:bg-neutral-900/95">
+				<div className="flex items-center gap-2 text-gray-400 text-xs dark:text-neutral-500">
+					<div className="h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-blue-500 dark:border-neutral-600 dark:border-t-blue-400" />
 					Searching…
 				</div>
 			</div>
@@ -162,20 +162,23 @@ function SuggestionList({
 	}
 
 	return (
-		<div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-100 bg-white/95 shadow-lg backdrop-blur-xl">
+		<div className="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-100 bg-white/95 shadow-lg backdrop-blur-xl dark:border-neutral-700 dark:bg-neutral-900/95">
 			{suggestions.map((s: LocationSuggestion) => (
 				<button
-					className="flex w-full items-start gap-2.5 px-3 py-2 text-left transition-colors hover:bg-gray-50"
+					className="flex w-full items-start gap-2.5 px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-neutral-800"
 					key={s.id}
-					onClick={() => onSelect(s)}
+					onMouseDown={(e) => {
+						e.preventDefault();
+						onSelect(s);
+					}}
 					type="button"
 				>
-					<MapPin className="mt-0.5 shrink-0 text-gray-400" size={14} />
+					<MapPin className="mt-0.5 shrink-0 text-gray-400 dark:text-neutral-500" size={14} />
 					<div className="min-w-0">
-						<p className="truncate font-medium text-gray-900 text-sm">
+						<p className="truncate font-medium text-gray-900 text-sm dark:text-neutral-100">
 							{s.name}
 						</p>
-						<p className="truncate text-gray-500 text-xs">{s.address}</p>
+						<p className="truncate text-gray-500 text-xs dark:text-neutral-400">{s.address}</p>
 					</div>
 				</button>
 			))}
@@ -197,27 +200,27 @@ function RouteResultsPanel({
 	return (
 		<div className="flex h-full flex-col">
 			{/* Header */}
-			<div className="flex items-center gap-2 border-gray-100 border-b px-4 py-3">
+			<div className="flex items-center gap-2 border-gray-100 border-b px-4 py-3 dark:border-neutral-700">
 				<button
 					aria-label="Go back"
-					className="rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100"
+					className="rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
 					onClick={onBack}
 					type="button"
 				>
 					<ArrowLeft size={18} />
 				</button>
 				<div className="min-w-0 flex-1">
-					<h2 className="truncate font-semibold text-gray-900">
+					<h2 className="truncate font-semibold text-gray-900 dark:text-neutral-100">
 						Trip to {route.destination}
 					</h2>
-					<p className="text-gray-500 text-xs">
+					<p className="text-gray-500 text-xs dark:text-neutral-400">
 						{route.legs.length} {route.legs.length === 1 ? "leg" : "legs"} •{" "}
 						Optimal route
 					</p>
 				</div>
 				<button
 					aria-label="Close"
-					className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+					className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
 					onClick={onClose}
 					type="button"
 				>
@@ -238,7 +241,7 @@ function RouteResultsPanel({
 									<div
 										className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm"
 										style={{
-											backgroundColor: isBus ? "#f97316" : "#007AFF",
+											backgroundColor: isBus ? "#10b981" : "#8b5cf6",
 										}}
 									>
 										{isBus ? (
@@ -248,7 +251,7 @@ function RouteResultsPanel({
 										)}
 									</div>
 									{!isLast && (
-										<div className="my-1 w-0.5 flex-1 rounded-full bg-gray-200" />
+										<div className="my-1 w-0.5 flex-1 rounded-full bg-gray-200 dark:bg-neutral-700" />
 									)}
 								</div>
 
@@ -256,21 +259,21 @@ function RouteResultsPanel({
 								<div className={`min-w-0 flex-1 ${isLast ? "pb-0" : "pb-4"}`}>
 									<div className="flex items-start justify-between">
 										<div className="min-w-0">
-											<p className="font-medium text-gray-500 text-xs">
+											<p className="font-medium text-gray-500 text-xs dark:text-neutral-400">
 												Leg {leg.legNumber}
 											</p>
-											<p className="truncate font-semibold text-gray-900 text-sm">
+											<p className="truncate font-semibold text-gray-900 text-sm dark:text-neutral-100">
 												{leg.vehicleName}
 											</p>
 										</div>
-										<span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700 text-xs">
+										<span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700 text-xs dark:bg-neutral-800 dark:text-neutral-300">
 											JMD ${leg.cost.toLocaleString()}
 										</span>
 									</div>
-									<p className="mt-0.5 text-gray-500 text-xs">
+									<p className="mt-0.5 text-gray-500 text-xs dark:text-neutral-400">
 										{leg.from} → {leg.to}
 									</p>
-									<p className="mt-0.5 flex items-center gap-1 text-gray-400 text-xs">
+									<p className="mt-0.5 flex items-center gap-1 text-gray-400 text-xs dark:text-neutral-500">
 										<Clock size={10} />
 										{leg.duration} min
 									</p>
@@ -285,30 +288,30 @@ function RouteResultsPanel({
 					<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500 shadow-sm">
 						<MapPin color="white" size={14} />
 					</div>
-					<p className="font-medium text-gray-700 text-sm">
+					<p className="font-medium text-gray-700 text-sm dark:text-neutral-300">
 						Arrive at {route.destination}
 					</p>
 				</div>
 			</div>
 
 			{/* Summary footer */}
-			<div className="border-gray-100 border-t px-4 py-3">
+			<div className="border-gray-100 border-t px-4 py-3 dark:border-neutral-700">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-4">
 						<div className="flex items-center gap-1.5">
-							<Clock className="text-gray-400" size={14} />
-							<span className="font-semibold text-gray-900 text-sm">
+							<Clock className="text-gray-400 dark:text-neutral-500" size={14} />
+							<span className="font-semibold text-gray-900 text-sm dark:text-neutral-100">
 								{route.totalDuration} min
 							</span>
 						</div>
 						<div className="flex items-center gap-1.5">
-							<DollarSign className="text-gray-400" size={14} />
-							<span className="font-semibold text-gray-900 text-sm">
+							<DollarSign className="text-gray-400 dark:text-neutral-500" size={14} />
+							<span className="font-semibold text-gray-900 text-sm dark:text-neutral-100">
 								JMD ${route.totalCost.toLocaleString()}
 							</span>
 						</div>
 					</div>
-					<span className="rounded-full bg-green-100 px-2.5 py-1 font-medium text-green-700 text-xs">
+					<span className="rounded-full bg-green-100 px-2.5 py-1 font-medium text-green-700 text-xs dark:bg-green-900/40 dark:text-green-400">
 						Best Route
 					</span>
 				</div>
@@ -361,6 +364,7 @@ export default function TripDrawer({
 	const [showToSuggestions, setShowToSuggestions] = useState(false);
 	const [isSearching, setIsSearching] = useState(false);
 	const [route, setRoute] = useState<TripRoute | null>(null);
+	const [minimized, setMinimized] = useState(false);
 
 	// Boarding state
 	const [boardingType, setBoardingType] = useState<"jutc" | "taxi">("jutc");
@@ -404,7 +408,7 @@ export default function TripDrawer({
 			setFromQuery(suggestion.name);
 			setShowFromSuggestions(false);
 			onFromSelect?.(suggestion);
-			toRef.current?.focus();
+			setMinimized(true);
 		},
 		[onFromSelect]
 	);
@@ -415,6 +419,7 @@ export default function TripDrawer({
 			setToQuery(suggestion.name);
 			setShowToSuggestions(false);
 			onToSelect?.(suggestion);
+			setMinimized(true);
 		},
 		[onToSelect]
 	);
@@ -456,6 +461,7 @@ export default function TripDrawer({
 			setLicensePlate("");
 			setRouteNumber("");
 			setBoardingType("jutc");
+			setMinimized(false);
 			onFromSelect?.(null);
 			onToSelect?.(null);
 			onRouteFound?.(null);
@@ -463,6 +469,7 @@ export default function TripDrawer({
 	}, [onFromSelect, onToSelect, onRouteFound]);
 
 	const handleGoToBoarding = useCallback(() => {
+		setMinimized(false);
 		setSlideDirection("left");
 		setView("boarding");
 	}, []);
@@ -619,11 +626,11 @@ export default function TripDrawer({
 			<Drawer.Trigger asChild>
 				<button
 					aria-label="Open trip planner"
-					className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-white/60 bg-white/90 px-5 py-3 text-sm font-semibold text-gray-900 shadow-xl backdrop-blur-xl transition-all hover:bg-white hover:shadow-2xl active:scale-95"
+					className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-white/60 bg-white/90 px-5 py-3 text-sm font-semibold text-gray-900 shadow-xl backdrop-blur-xl transition-all hover:bg-white hover:shadow-2xl active:scale-95 dark:border-neutral-700 dark:bg-neutral-900/90 dark:text-neutral-100 dark:hover:bg-neutral-800"
 					style={{ zIndex: 1002 }}
 					type="button"
 				>
-					<div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500">
+					<div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-500">
 						<Navigation color="white" size={13} />
 					</div>
 					Plan a Trip
@@ -632,18 +639,30 @@ export default function TripDrawer({
 
 			<Drawer.Portal>
 				<Drawer.Overlay
-					className="fixed inset-0 bg-black/30"
-					style={{ zIndex: 1010 }}
+					className={`fixed inset-0 transition-colors duration-300 ${
+						view === "tracking"
+							? "bg-transparent"
+							: "bg-black/20 dark:bg-black/40"
+					}`}
+					style={{ zIndex: 1010, pointerEvents: view === "tracking" ? "none" : "auto" }}
 				/>
 
 				<Drawer.Content
 					aria-describedby={undefined}
-					className="fixed inset-x-0 bottom-0 mx-auto flex max-w-lg flex-col rounded-t-3xl bg-white/95 shadow-2xl outline-none backdrop-blur-xl"
-					style={{ zIndex: 1011, height: "56vh" }}
+					className="fixed inset-x-0 bottom-0 mx-auto flex max-w-lg flex-col rounded-t-3xl bg-white/95 shadow-2xl outline-none backdrop-blur-xl transition-[height] duration-300 ease-in-out dark:bg-neutral-900/95"
+					style={{
+						zIndex: 1011,
+						height:
+							view === "tracking"
+								? "100px"
+								: minimized && view === "search"
+									? "8em"
+									: "56vh",
+					}}
 				>
 					{/* Drag handle */}
 					<div className="flex justify-center pt-3 pb-1">
-						<div className="h-1.5 w-12 rounded-full bg-gray-300" />
+						<div className="h-1.5 w-12 rounded-full bg-gray-300 dark:bg-neutral-600" />
 					</div>
 
 					<Drawer.Title className="sr-only">Plan a Trip</Drawer.Title>
@@ -654,151 +673,207 @@ export default function TripDrawer({
 						<div
 							className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${getSlideClass(view, "search", slideDirection)}`}
 						>
-							<div className="flex items-center justify-between px-4 pt-2 pb-3">
-								<div className="flex items-center gap-2.5">
-									<div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500">
-										<Route color="white" size={15} />
-									</div>
-									<div>
-										<h2 className="font-semibold text-gray-900">Start Trip</h2>
-										<p className="text-gray-500 text-xs">Find the best route</p>
-									</div>
-								</div>
+							{/* ── Minimized compact view ──── */}
+							{minimized ? (
 								<button
-									aria-label="Close trip planner"
-									className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-									onClick={handleClose}
+									className="flex w-full flex-col gap-3 px-4 pt-2 pb-4 text-left"
+									onClick={() => setMinimized(false)}
 									type="button"
 								>
-									<X size={18} />
+									<div className="flex items-center gap-3">
+										{/* From / To pills */}
+										<div className="flex min-w-0 flex-1 items-center gap-2">
+											<div className="flex items-center gap-1.5 min-w-0 flex-1">
+												<div className="h-2 w-2 shrink-0 rounded-full bg-green-500" />
+												<p className="truncate text-sm text-gray-700 dark:text-neutral-300">
+													{selectedFrom?.name ?? "Starting location"}
+												</p>
+											</div>
+											<span className="shrink-0 text-gray-300 dark:text-neutral-600">→</span>
+											<div className="flex items-center gap-1.5 min-w-0 flex-1">
+												<div className="h-2 w-2 shrink-0 rounded-full bg-red-500" />
+												<p className="truncate text-sm text-gray-700 dark:text-neutral-300">
+													{selectedTo?.name ?? "Destination"}
+												</p>
+											</div>
+										</div>
+										<X
+											className="shrink-0 text-gray-400 dark:text-neutral-500"
+											onClick={(e) => {
+												e.stopPropagation();
+												handleClose();
+											}}
+											size={16}
+										/>
+									</div>
+									<Button
+										className="h-10 w-full rounded-xl bg-violet-500 text-sm font-semibold text-white shadow-md shadow-violet-500/25 transition-all hover:bg-violet-600 hover:shadow-lg disabled:opacity-50 disabled:shadow-none"
+										disabled={isRouteDisabled}
+										onClick={(e) => {
+											e.stopPropagation();
+											setMinimized(false);
+											handleFindRoute();
+										}}
+										type="button"
+									>
+										<Navigation size={14} />
+										Find Route
+									</Button>
 								</button>
-							</div>
-
-							<div className="flex flex-col gap-3 overflow-y-auto px-4 pb-6">
-								{/* From */}
-								<div
-									className="relative"
-									onClickCapture={(e) => e.stopPropagation()}
-								>
-									<label
-										className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500"
-										htmlFor="drawer-from"
-									>
-										<div className="h-2 w-2 rounded-full bg-green-500" />
-										From
-									</label>
-									<div className="relative">
-										<Search
-											className="absolute top-1/2 left-2.5 -translate-y-1/2 text-gray-400"
-											size={14}
-										/>
-										<input
-											autoComplete="off"
-											className="h-10 w-full rounded-xl border  text-gray-800 border-gray-200 bg-gray-50 pr-3 pl-8 text-sm outline-none transition-colors placeholder:text-gray-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 text-"
-											id="drawer-from"
-											onChange={(e) => {
-												setFromQuery(e.target.value);
-												setSelectedFrom(null);
-												onFromSelect?.(null);
-												setShowFromSuggestions(true);
-											}}
-											onFocus={() => setShowFromSuggestions(true)}
-											placeholder="Search starting location..."
-											type="text"
-											value={fromQuery}
-										/>
+							) : (
+								<>
+									{/* ── Expanded search view ──── */}
+									<div className="flex items-center justify-between px-4 pt-2 pb-3">
+										<div className="flex items-center gap-2.5">
+											<div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-500">
+												<Route color="white" size={15} />
+											</div>
+											<div>
+												<h2 className="font-semibold text-gray-900 dark:text-neutral-100">
+													Start Trip
+												</h2>
+												<p className="text-gray-500 text-xs dark:text-neutral-400">
+													Find the best route
+												</p>
+											</div>
+										</div>
+										<button
+											aria-label="Close trip planner"
+											className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
+											onClick={handleClose}
+											type="button"
+										>
+											<X size={18} />
+										</button>
 									</div>
-									<SuggestionList
-										onSelect={handleFromSelect}
-										query={fromQuery}
-										visible={showFromSuggestions}
-									/>
-								</div>
 
-								{/* Connector dots */}
-								<div className="flex flex-col items-center gap-0.5 pl-1">
-									<div className="h-1 w-1 rounded-full bg-gray-300" />
-									<div className="h-1 w-1 rounded-full bg-gray-300" />
-									<div className="h-1 w-1 rounded-full bg-gray-300" />
-								</div>
+									<div className="flex flex-col gap-3 overflow-y-auto px-4 pb-6">
+										{/* From */}
+										<div
+											className="relative"
+											onClickCapture={(e) => e.stopPropagation()}
+										>
+											<label
+												className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-neutral-400"
+												htmlFor="drawer-from"
+											>
+												<div className="h-2 w-2 rounded-full bg-green-500" />
+												From
+											</label>
+											<div className="relative">
+												<Search
+													className="absolute top-1/2 left-2.5 -translate-y-1/2 text-gray-400 dark:text-neutral-500"
+													size={14}
+												/>
+												<input
+													autoComplete="off"
+													className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 pr-3 pl-8 text-sm text-gray-800 outline-none transition-colors placeholder:text-gray-400 focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-violet-500 dark:focus:bg-neutral-800 dark:focus:ring-violet-900/30"
+													id="drawer-from"
+													onChange={(e) => {
+														setFromQuery(e.target.value);
+														setSelectedFrom(null);
+														onFromSelect?.(null);
+														setShowFromSuggestions(true);
+													}}
+													onFocus={() => setShowFromSuggestions(true)}
+													placeholder="Search starting location..."
+													type="text"
+													value={fromQuery}
+												/>
+											</div>
+											<SuggestionList
+												onSelect={handleFromSelect}
+												query={fromQuery}
+												visible={showFromSuggestions}
+											/>
+										</div>
 
-								{/* To */}
-								<div
-									className="relative"
-									onClickCapture={(e) => e.stopPropagation()}
-								>
-									<label
-										className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500"
-										htmlFor="drawer-to"
-									>
-										<div className="h-2 w-2 rounded-full bg-red-500" />
-										To
-									</label>
-									<div className="relative">
-										<Search
-											className="absolute top-1/2 left-2.5 -translate-y-1/2 text-gray-400"
-											size={14}
-										/>
-										<input
-											autoComplete="off"
-											className="h-10 w-full rounded-xl border  text-gray-800 border-gray-200 bg-gray-50 pr-3 pl-8 text-sm outline-none transition-colors placeholder:text-gray-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
-											id="drawer-to"
-											onChange={(e) => {
-												setToQuery(e.target.value);
-												setSelectedTo(null);
-												onToSelect?.(null);
-												setShowToSuggestions(true);
-											}}
-											onFocus={() => setShowToSuggestions(true)}
-											placeholder="Search destination..."
-											ref={toRef}
-											type="text"
-											value={toQuery}
-										/>
+										{/* Connector dots */}
+										<div className="flex flex-col items-center gap-0.5 pl-1">
+											<div className="h-1 w-1 rounded-full bg-gray-300 dark:bg-neutral-600" />
+											<div className="h-1 w-1 rounded-full bg-gray-300 dark:bg-neutral-600" />
+											<div className="h-1 w-1 rounded-full bg-gray-300 dark:bg-neutral-600" />
+										</div>
+
+										{/* To */}
+										<div
+											className="relative"
+											onClickCapture={(e) => e.stopPropagation()}
+										>
+											<label
+												className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-neutral-400"
+												htmlFor="drawer-to"
+											>
+												<div className="h-2 w-2 rounded-full bg-red-500" />
+												To
+											</label>
+											<div className="relative">
+												<Search
+													className="absolute top-1/2 left-2.5 -translate-y-1/2 text-gray-400 dark:text-neutral-500"
+													size={14}
+												/>
+												<input
+													autoComplete="off"
+													className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 pr-3 pl-8 text-sm text-gray-800 outline-none transition-colors placeholder:text-gray-400 focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-violet-500 dark:focus:bg-neutral-800 dark:focus:ring-violet-900/30"
+													id="drawer-to"
+													onChange={(e) => {
+														setToQuery(e.target.value);
+														setSelectedTo(null);
+														onToSelect?.(null);
+														setShowToSuggestions(true);
+													}}
+													onFocus={() => setShowToSuggestions(true)}
+													placeholder="Search destination..."
+													ref={toRef}
+													type="text"
+													value={toQuery}
+												/>
+											</div>
+											<SuggestionList
+												onSelect={handleToSelect}
+												query={toQuery}
+												visible={showToSuggestions}
+											/>
+										</div>
+
+										<Button
+											className="mt-2 h-11 w-full rounded-xl bg-violet-500 text-sm font-semibold text-white shadow-md shadow-violet-500/25 transition-all hover:bg-violet-600 hover:shadow-lg disabled:opacity-50 disabled:shadow-none"
+											disabled={isRouteDisabled}
+											onClick={handleFindRoute}
+											type="button"
+										>
+											{isSearching ? (
+												<>
+													<div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+													Finding routes...
+												</>
+											) : (
+												<>
+													<Navigation size={15} />
+													Find Route
+												</>
+											)}
+										</Button>
+
+										{/* Divider */}
+										<div className="flex items-center gap-3 pt-1">
+											<div className="h-px flex-1 bg-gray-200 dark:bg-neutral-700" />
+											<span className="text-xs text-gray-400 dark:text-neutral-500">or</span>
+											<div className="h-px flex-1 bg-gray-200 dark:bg-neutral-700" />
+										</div>
+
+										{/* Board vehicle button */}
+										<Button
+											className="h-11 w-full rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+											onClick={handleGoToBoarding}
+											type="button"
+										>
+											<Bus size={15} />
+											I'm Boarding a Vehicle
+										</Button>
 									</div>
-									<SuggestionList
-										onSelect={handleToSelect}
-										query={toQuery}
-										visible={showToSuggestions}
-									/>
-								</div>
-
-								<Button
-									className="mt-2 h-11 w-full rounded-xl bg-blue-500 text-sm font-semibold text-white shadow-md shadow-blue-500/25 transition-all hover:bg-blue-600 hover:shadow-lg disabled:opacity-50 disabled:shadow-none"
-									disabled={isRouteDisabled}
-									onClick={handleFindRoute}
-									type="button"
-								>
-									{isSearching ? (
-										<>
-											<div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-											Finding routes...
-										</>
-									) : (
-										<>
-											<Navigation size={15} />
-											Find Route
-										</>
-									)}
-								</Button>
-
-								{/* Divider */}
-								<div className="flex items-center gap-3 pt-1">
-									<div className="h-px flex-1 bg-gray-200" />
-									<span className="text-xs text-gray-400">or</span>
-									<div className="h-px flex-1 bg-gray-200" />
-								</div>
-
-								{/* Board vehicle button */}
-								<Button
-									className="h-11 w-full rounded-xl border border-orange-200 bg-orange-50 text-sm font-semibold text-orange-700 transition-all hover:bg-orange-100"
-									onClick={handleGoToBoarding}
-									type="button"
-								>
-									<Bus size={15} />
-									I'm Boarding a Vehicle
-								</Button>
-							</div>
+								</>
+							)}
 						</div>
 
 						{/* ── Results panel ──────────────── */}
@@ -818,24 +893,24 @@ export default function TripDrawer({
 						<div
 							className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${getSlideClass(view, "boarding", slideDirection)}`}
 						>
-							<div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
+							<div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-neutral-700">
 								<button
 									aria-label="Go back"
-									className="rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100"
+									className="rounded-full p-1 text-gray-500 transition-colors hover:bg-gray-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
 									onClick={handleBackFromBoarding}
 									type="button"
 								>
 									<ArrowLeft size={18} />
 								</button>
 								<div className="min-w-0 flex-1">
-									<h2 className="font-semibold text-gray-900">Board Vehicle</h2>
-									<p className="text-xs text-gray-500">
+									<h2 className="font-semibold text-gray-900 dark:text-neutral-100">Board Vehicle</h2>
+									<p className="text-xs text-gray-500 dark:text-neutral-400">
 										Track your ride to help others
 									</p>
 								</div>
 								<button
 									aria-label="Close"
-									className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+									className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
 									onClick={handleClose}
 									type="button"
 								>
@@ -846,15 +921,15 @@ export default function TripDrawer({
 							<div className="flex flex-col gap-4 overflow-y-auto px-4 py-4">
 								{/* Vehicle type toggle */}
 								<div>
-									<p className="mb-2 text-xs font-medium text-gray-500">
+									<p className="mb-2 text-xs font-medium text-gray-500 dark:text-neutral-400">
 										Vehicle Type
 									</p>
 									<div className="flex gap-2">
 										<button
 											className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all ${
 												boardingType === "jutc"
-													? "border-orange-300 bg-orange-50 text-orange-700"
-													: "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+													? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+													: "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700"
 											}`}
 											onClick={() => setBoardingType("jutc")}
 											type="button"
@@ -865,8 +940,8 @@ export default function TripDrawer({
 										<button
 											className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all ${
 												boardingType === "taxi"
-													? "border-blue-300 bg-blue-50 text-blue-700"
-													: "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+													? "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/30 dark:text-violet-400"
+													: "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700"
 											}`}
 											onClick={() => setBoardingType("taxi")}
 											type="button"
@@ -880,7 +955,7 @@ export default function TripDrawer({
 								{/* License plate */}
 								<div>
 									<label
-										className="mb-1 block text-xs font-medium text-gray-500"
+										className="mb-1 block text-xs font-medium text-gray-500 dark:text-neutral-400"
 										htmlFor="license-plate"
 									>
 										License Plate Number
@@ -888,7 +963,7 @@ export default function TripDrawer({
 									<input
 										autoCapitalize="characters"
 										autoComplete="off"
-										className="h-10 w-full rounded-xl border text-gray-800 border-gray-200 bg-gray-50 px-3 text-sm font-mono uppercase outline-none transition-colors placeholder:text-gray-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+										className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-mono uppercase text-gray-800 outline-none transition-colors placeholder:text-gray-400 focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-violet-500 dark:focus:bg-neutral-800 dark:focus:ring-violet-900/30"
 										id="license-plate"
 										maxLength={20}
 										onChange={(e) => setLicensePlate(e.target.value)}
@@ -902,13 +977,13 @@ export default function TripDrawer({
 								{boardingType === "jutc" && (
 									<div>
 										<label
-											className="mb-1 block text-xs font-medium text-gray-500"
+											className="mb-1 block text-xs font-medium text-gray-500 dark:text-neutral-400"
 											htmlFor="route-number"
 										>
 											Bus Route Number
 										</label>
 										<select
-											className="h-10 w-full rounded-xl border  text-gray-800 border-gray-200 bg-gray-50 px-3 text-sm outline-none transition-colors focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+											className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-800 outline-none transition-colors focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:focus:border-violet-500 dark:focus:bg-neutral-800 dark:focus:ring-violet-900/30"
 											id="route-number"
 											onChange={(e) => setRouteNumber(e.target.value)}
 											value={routeNumber}
@@ -924,8 +999,8 @@ export default function TripDrawer({
 								)}
 
 								{/* Info callout */}
-								<div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
-									<p className="text-xs leading-relaxed text-blue-700">
+								<div className="rounded-xl border border-violet-100 bg-violet-50 p-3 dark:border-violet-800 dark:bg-violet-900/20">
+									<p className="text-xs leading-relaxed text-violet-700 dark:text-violet-400">
 										<Radio className="mr-1 inline -translate-y-px" size={12} />
 										Your location will be shared anonymously while you ride,
 										helping other commuters see live vehicle positions.
@@ -953,80 +1028,43 @@ export default function TripDrawer({
 							</div>
 						</div>
 
-						{/* ── Tracking panel ──────────────── */}
+						{/* ── Tracking panel (compact bar) ──────────────── */}
 						<div
 							className={`absolute inset-0 flex flex-col transition-transform duration-300 ease-in-out ${getSlideClass(view, "tracking", slideDirection)}`}
 						>
-							<div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
-								<div
-									className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-									style={{
-										backgroundColor:
-											boardingType === "jutc" ? "#f97316" : "#007AFF",
-									}}
-								>
-									{boardingType === "jutc" ? (
-										<Bus color="white" size={14} />
-									) : (
-										<Car color="white" size={14} />
-									)}
+							<div className="flex items-center gap-3 px-4 py-3">
+								{/* Live dot */}
+								<div className="relative flex shrink-0">
+									<span className="inline-flex h-3 w-3 rounded-full bg-green-500 shadow-sm shadow-green-500/50" />
 								</div>
+
+								{/* Vehicle + destination info */}
 								<div className="min-w-0 flex-1">
-									<h2 className="font-semibold text-gray-900">
+									<p className="truncate text-sm font-semibold text-gray-900 dark:text-neutral-100">
 										{boardingType === "jutc"
 											? `JUTC Bus ${routeNumber}`
 											: `Taxi ${licensePlate.toUpperCase()}`}
-									</h2>
-									<p className="text-xs text-gray-500">
-										Plate: {licensePlate.toUpperCase()}
 									</p>
-								</div>
-							</div>
-
-							<div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-6">
-								{/* Live indicator */}
-								<div className="relative">
-									<div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
-										<div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-500 shadow-lg shadow-green-500/30">
-											<Radio color="white" size={24} />
-										</div>
-									</div>
-									<span className="absolute -top-1 -right-1 flex h-5 w-5">
-										<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-										<span className="relative inline-flex h-5 w-5 rounded-full bg-green-500" />
-									</span>
+									{selectedTo && (
+										<p className="truncate text-xs text-gray-500 dark:text-neutral-400">
+											To: {selectedTo.name}
+										</p>
+									)}
 								</div>
 
-								<div className="text-center">
-									<p className="text-lg font-bold text-gray-900">
-										Tracking Live
-									</p>
-									<p className="mt-0.5 font-mono text-2xl font-bold text-green-600">
-										{formatElapsed(trackingElapsed)}
-									</p>
-								</div>
-
-								{lastPosition && (
-									<div className="flex items-center gap-4 rounded-xl border border-gray-100 bg-gray-50 px-4 py-2 text-xs text-gray-500">
-										<span>Lat: {lastPosition.lat.toFixed(5)}</span>
-										<span>Lng: {lastPosition.lng.toFixed(5)}</span>
-									</div>
-								)}
-
-								<p className="max-w-xs text-center text-xs leading-relaxed text-gray-400">
-									Your position is being shared to help other commuters. Keep
-									this open until you reach your stop.
+								{/* Elapsed time */}
+								<p className="shrink-0 font-mono text-lg font-bold text-green-600 dark:text-green-400">
+									{formatElapsed(trackingElapsed)}
 								</p>
-							</div>
 
-							<div className="border-t border-gray-100 px-4 py-4">
+								{/* Stop button */}
 								<Button
-									className="h-11 w-full rounded-xl bg-red-500 text-sm font-semibold text-white shadow-md shadow-red-500/25 transition-all hover:bg-red-600 hover:shadow-lg"
+									className="h-9 shrink-0 rounded-xl bg-red-500 px-3 text-xs font-semibold text-white shadow-md shadow-red-500/25 transition-all hover:bg-red-600 hover:shadow-lg"
 									onClick={handleStopTracking}
 									type="button"
 								>
-									<Square size={14} />
-									Stop Tracking & Exit
+									<Square size={12} />
+									Stop
 								</Button>
 							</div>
 						</div>

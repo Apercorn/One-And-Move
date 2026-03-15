@@ -1,10 +1,21 @@
 ﻿"use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { BUS_STOPS } from "@One-and-Move/db/data/bus-stops";
+import { TAXI_STANDS } from "@One-and-Move/db/data/taxi-stands";
 import { Bus, Car, Navigation } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { client } from "@/utils/orpc";
+import {
+	DEFAULT_CONFIG,
+	type SimulatedUser,
+	type SimulatedVehicle,
+	type SimulationConfig,
+	createSimulatedUser,
+	createSimulatedVehicles,
+	resolveRoadPaths,
+	tickUser,
+	tickVehicles,
+} from "@/lib/simulation";
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -14,6 +25,7 @@ interface LatLng {
 }
 
 interface WebMapProps {
+	darkMode?: boolean;
 	flyTo?: LatLng | null;
 	fromMarker?: LatLng | null;
 	routePoints?: LatLng[];
@@ -23,6 +35,7 @@ interface WebMapProps {
 interface Vehicle {
 	avgCost: string;
 	capacity: number;
+	heading?: number;
 	id: string;
 	lat: number;
 	lng: number;
@@ -41,70 +54,10 @@ const DEFAULT_ZOOM = 13;
  * Single subdomain (no {s}) avoids SSR hostname-resolution issues.
  * @2x suffix requests retina/HiDPI tiles.
  */
-const IOS_TILE_URL =
+const LIGHT_TILE_URL =
 	"https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
-
-/* ── Mock data (fallback) ───────────────────────── */
-
-const MOCK_VEHICLES: Vehicle[] = [
-	{
-		id: "1",
-		type: "jutc",
-		lat: 18.017,
-		lng: -76.805,
-		name: "JUTC Bus 32",
-		capacity: 80,
-		avgCost: "JMD $100",
-		route: "Half Way Tree → Papine",
-	},
-	{
-		id: "2",
-		type: "jutc",
-		lat: 18.022,
-		lng: -76.812,
-		name: "JUTC Bus 21A",
-		capacity: 60,
-		avgCost: "JMD $100",
-		route: "Downtown → Constant Spring",
-	},
-	{
-		id: "3",
-		type: "jutc",
-		lat: 18.013,
-		lng: -76.798,
-		name: "JUTC Bus 15",
-		capacity: 72,
-		avgCost: "JMD $100",
-		route: "New Kingston → UWI",
-	},
-	{
-		id: "4",
-		type: "robot_taxi",
-		lat: 18.016,
-		lng: -76.802,
-		name: "Robot Taxi A1",
-		capacity: 4,
-		avgCost: "JMD $800",
-	},
-	{
-		id: "5",
-		type: "robot_taxi",
-		lat: 18.021,
-		lng: -76.819,
-		name: "Robot Taxi B3",
-		capacity: 4,
-		avgCost: "JMD $950",
-	},
-	{
-		id: "6",
-		type: "robot_taxi",
-		lat: 18.009,
-		lng: -76.807,
-		name: "Robot Taxi C7",
-		capacity: 6,
-		avgCost: "JMD $1,200",
-	},
-];
+const DARK_TILE_URL =
+	"https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png";
 
 /* ── Vehicle popup ──────────────────────────────── */
 
@@ -116,12 +69,12 @@ function VehiclePopup({
 	onClose: () => void;
 }) {
 	const isBus = vehicle.type === "jutc";
-	const iconBg = isBus ? "#f97316" : "#007AFF";
+	const iconBg = isBus ? "#10b981" : "#8b5cf6";
 	const IconComponent = isBus ? Bus : Car;
 
 	return (
 		<div
-			className="pointer-events-auto min-w-48 overflow-hidden rounded-2xl border border-white/60 bg-white shadow-xl"
+			className="pointer-events-auto min-w-48 overflow-hidden rounded-2xl border border-white/60 bg-white shadow-xl dark:border-neutral-700 dark:bg-neutral-900"
 			style={{
 				fontFamily:
 					"-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif",
@@ -136,35 +89,41 @@ function VehiclePopup({
 						<IconComponent color="white" size={17} />
 					</div>
 					<div className="flex-1">
-						<p className="font-semibold text-sm leading-tight text-gray-900">
+						<p className="font-semibold text-sm leading-tight text-gray-900 dark:text-neutral-100">
 							{vehicle.name}
 						</p>
-						<p className="text-gray-500 text-xs">
+						<p className="text-gray-500 text-xs dark:text-neutral-400">
 							{isBus ? "Public Bus" : "Robot Taxi"}
 						</p>
 					</div>
 					<button
 						aria-label="Close popup"
-						className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100"
+						className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 dark:text-neutral-500 dark:hover:bg-neutral-800"
 						onClick={onClose}
 						type="button"
 					>
 						✕
 					</button>
 				</div>
-				<div className="space-y-1.5 border-gray-100 border-t pt-2">
+				<div className="space-y-1.5 border-gray-100 border-t pt-2 dark:border-neutral-700">
 					<div className="flex justify-between text-xs">
-						<span className="text-gray-500">Est. Capacity</span>
-						<span className="font-medium text-gray-800">
+						<span className="text-gray-500 dark:text-neutral-400">
+							Est. Capacity
+						</span>
+						<span className="font-medium text-gray-800 dark:text-neutral-200">
 							{vehicle.capacity} passengers
 						</span>
 					</div>
 					<div className="flex justify-between text-xs">
-						<span className="text-gray-500">Avg. Cost</span>
-						<span className="font-medium text-gray-800">{vehicle.avgCost}</span>
+						<span className="text-gray-500 dark:text-neutral-400">
+							Avg. Cost
+						</span>
+						<span className="font-medium text-gray-800 dark:text-neutral-200">
+							{vehicle.avgCost}
+						</span>
 					</div>
 					{vehicle.route && (
-						<div className="mt-1 border-gray-100 border-t pt-1.5 text-gray-500 text-xs">
+						<div className="mt-1 border-gray-100 border-t pt-1.5 text-gray-500 text-xs dark:border-neutral-700 dark:text-neutral-400">
 							<Navigation className="mr-1 inline" size={10} />
 							{vehicle.route}
 						</div>
@@ -183,11 +142,15 @@ function MapLibreInner({
 	routePoints,
 	vehicles,
 	flyTo,
+	darkMode = false,
+	simUser,
 }: {
+	darkMode?: boolean;
 	flyTo?: LatLng | null;
 	fromMarker?: LatLng | null;
 	toMarker?: LatLng | null;
 	routePoints?: LatLng[];
+	simUser?: SimulatedUser | null;
 	vehicles: Vehicle[];
 }) {
 	// react-map-gl v8 exports MapLibre-flavoured components from this sub-path
@@ -196,6 +159,13 @@ function MapLibreInner({
 		require("react-map-gl/maplibre") as typeof import("react-map-gl/maplibre");
 
 	const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+	const [selectedStop, setSelectedStop] = useState<{
+		name: string;
+		type: "bus" | "taxi";
+		lat: number;
+		lng: number;
+		details?: string;
+	} | null>(null);
 	// biome-ignore lint/suspicious/noExplicitAny: MapLibre map instance
 	const mapRef = useRef<any>(null);
 
@@ -208,6 +178,103 @@ function MapLibreInner({
 			duration: 1200,
 		});
 	}, [flyTo]);
+
+	// Build GeoJSON for bus stops (with clustering)
+	const busStopsGeoJson = useMemo(
+		() => ({
+			type: "FeatureCollection" as const,
+			features: BUS_STOPS.map((stop) => ({
+				type: "Feature" as const,
+				geometry: {
+					type: "Point" as const,
+					coordinates: [stop.lng, stop.lat],
+				},
+				properties: {
+					name: stop.name,
+					address: stop.address,
+					routes: stop.routeIds.join(", "),
+					stopType: "bus",
+				},
+			})),
+		}),
+		[]
+	);
+
+	// Build GeoJSON for taxi stands (with clustering)
+	const taxiStandsGeoJson = useMemo(
+		() => ({
+			type: "FeatureCollection" as const,
+			features: TAXI_STANDS.map((stand) => ({
+				type: "Feature" as const,
+				geometry: {
+					type: "Point" as const,
+					coordinates: [stand.lng, stand.lat],
+				},
+				properties: {
+					name: stand.name,
+					stopType: "taxi",
+				},
+			})),
+		}),
+		[]
+	);
+
+	// Handle map click: expand clusters or select individual stops
+	const handleMapClick = useCallback(
+		// biome-ignore lint/suspicious/noExplicitAny: MapLibre event
+		(e: any) => {
+			setSelectedVehicle(null);
+			setSelectedStop(null);
+
+			const map = mapRef.current;
+			if (!map) return;
+
+			// Check for cluster clicks first
+			const clusterLayers = ["bus-stops-clusters", "taxi-stands-clusters"];
+			const features = map.queryRenderedFeatures(e.point, {
+				layers: clusterLayers,
+			});
+
+			if (features.length > 0) {
+				const feature = features[0];
+				const sourceId = feature.layer.source;
+				const clusterId = feature.properties.cluster_id;
+				const source = map.getSource(sourceId);
+				if (source) {
+					source.getClusterExpansionZoom(clusterId).then((zoom: number) => {
+						map.easeTo({
+							center: feature.geometry.coordinates,
+							zoom: Math.min(zoom, 17),
+							duration: 500,
+						});
+					});
+				}
+				return;
+			}
+
+			// Check for individual stop clicks
+			const pointLayers = ["bus-stops-point", "taxi-stands-point"];
+			const pointFeatures = map.queryRenderedFeatures(e.point, {
+				layers: pointLayers,
+			});
+
+			if (pointFeatures.length > 0) {
+				const f = pointFeatures[0];
+				const [lng, lat] = f.geometry.coordinates;
+				setSelectedStop({
+					name: f.properties.name,
+					type: f.properties.stopType === "bus" ? "bus" : "taxi",
+					lat,
+					lng,
+					details:
+						f.properties.stopType === "bus"
+							? `Routes: ${f.properties.routes}`
+							: undefined,
+				});
+			}
+		},
+		[]
+	);
 
 	// Build GeoJSON for the route polyline
 	const routeGeoJson = useMemo(() => {
@@ -249,6 +316,8 @@ function MapLibreInner({
 		[]
 	);
 
+	const tileUrl = darkMode ? DARK_TILE_URL : LIGHT_TILE_URL;
+
 	return (
 		<Map
 			initialViewState={{
@@ -256,13 +325,20 @@ function MapLibreInner({
 				latitude: DEFAULT_CENTER.lat,
 				zoom: DEFAULT_ZOOM,
 			}}
+			interactiveLayerIds={[
+				"bus-stops-clusters",
+				"bus-stops-point",
+				"taxi-stands-clusters",
+				"taxi-stands-point",
+			]}
 			mapLib={import("maplibre-gl")}
 			mapStyle={{
 				version: 8,
+				glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
 				sources: {
-					"carto-voyager": {
+					"carto-tiles": {
 						type: "raster",
-						tiles: [IOS_TILE_URL],
+						tiles: [tileUrl],
 						tileSize: 256,
 						attribution:
 							"© <a href='https://www.openstreetmap.org/copyright'>OSM</a> © <a href='https://carto.com/'>CARTO</a>",
@@ -270,15 +346,23 @@ function MapLibreInner({
 				},
 				layers: [
 					{
-						id: "carto-voyager-tiles",
+						id: "carto-tiles-layer",
 						type: "raster",
-						source: "carto-voyager",
+						source: "carto-tiles",
 						minzoom: 0,
 						maxzoom: 22,
 					},
 				],
 			}}
-			onClick={() => setSelectedVehicle(null)}
+			onClick={handleMapClick}
+			onMouseEnter={() => {
+				const canvas = mapRef.current?.getCanvas();
+				if (canvas) canvas.style.cursor = "pointer";
+			}}
+			onMouseLeave={() => {
+				const canvas = mapRef.current?.getCanvas();
+				if (canvas) canvas.style.cursor = "";
+			}}
 			ref={mapRef}
 			style={{ width: "100%", height: "100%" }}
 		>
@@ -290,7 +374,7 @@ function MapLibreInner({
 					id="route-casing"
 					layout={{ "line-cap": "round", "line-join": "round" }}
 					paint={{
-						"line-color": "#ffffff",
+						"line-color": darkMode ? "#171717" : "#ffffff",
 						"line-width": 7,
 						"line-opacity": 0.5,
 					}}
@@ -300,7 +384,7 @@ function MapLibreInner({
 					id="route-line"
 					layout={{ "line-cap": "round", "line-join": "round" }}
 					paint={{
-						"line-color": "#007AFF",
+						"line-color": "#8b5cf6",
 						"line-width": 4,
 						"line-opacity": 0.9,
 					}}
@@ -308,13 +392,184 @@ function MapLibreInner({
 				/>
 			</Source>
 
+			{/* ── Bus stops (clustered) ── */}
+			<Source
+				cluster
+				clusterMaxZoom={14}
+				clusterRadius={50}
+				data={busStopsGeoJson}
+				id="bus-stops"
+				type="geojson"
+			>
+				{/* Cluster circles */}
+				<Layer
+					filter={["has", "point_count"]}
+					id="bus-stops-clusters"
+					paint={{
+						"circle-color": [
+							"step",
+							["get", "point_count"],
+							"#a7f3d0",
+							5,
+							"#6ee7b7",
+							15,
+							"#10b981",
+						],
+						"circle-radius": [
+							"step",
+							["get", "point_count"],
+							18,
+							5,
+							22,
+							15,
+							28,
+						],
+						"circle-stroke-color": darkMode ? "#1f2937" : "#ffffff",
+						"circle-stroke-width": 2,
+					}}
+					type="circle"
+				/>
+				{/* Cluster count label */}
+				<Layer
+					filter={["has", "point_count"]}
+					id="bus-stops-cluster-count"
+					layout={{
+						"text-field": "{point_count_abbreviated}",
+						"text-size": 12,
+						"text-font": ["Open Sans Bold"],
+					}}
+					paint={{
+						"text-color": "#064e3b",
+					}}
+					type="symbol"
+				/>
+				{/* Individual bus stop dots */}
+				<Layer
+					filter={["!", ["has", "point_count"]]}
+					id="bus-stops-point"
+					paint={{
+						"circle-color": "#10b981",
+						"circle-radius": 7,
+						"circle-stroke-color": darkMode ? "#1f2937" : "#ffffff",
+						"circle-stroke-width": 2,
+					}}
+					type="circle"
+				/>
+				{/* Bus stop label (visible at zoom >= 14) */}
+				<Layer
+					filter={["!", ["has", "point_count"]]}
+					id="bus-stops-label"
+					layout={{
+						"text-field": ["get", "name"],
+						"text-size": 11,
+						"text-offset": [0, 1.4],
+						"text-anchor": "top",
+						"text-max-width": 10,
+						"text-font": ["Open Sans Regular"],
+					}}
+					minzoom={14}
+					paint={{
+						"text-color": darkMode ? "#a7f3d0" : "#065f46",
+						"text-halo-color": darkMode ? "#111827" : "#ffffff",
+						"text-halo-width": 1.5,
+					}}
+					type="symbol"
+				/>
+			</Source>
+
+			{/* ── Taxi stands (clustered) ── */}
+			<Source
+				cluster
+				clusterMaxZoom={14}
+				clusterRadius={50}
+				data={taxiStandsGeoJson}
+				id="taxi-stands"
+				type="geojson"
+			>
+				{/* Cluster circles */}
+				<Layer
+					filter={["has", "point_count"]}
+					id="taxi-stands-clusters"
+					paint={{
+						"circle-color": [
+							"step",
+							["get", "point_count"],
+							"#fde68a",
+							5,
+							"#fbbf24",
+							15,
+							"#d97706",
+						],
+						"circle-radius": [
+							"step",
+							["get", "point_count"],
+							18,
+							5,
+							22,
+							15,
+							28,
+						],
+						"circle-stroke-color": darkMode ? "#1f2937" : "#ffffff",
+						"circle-stroke-width": 2,
+					}}
+					type="circle"
+				/>
+				{/* Cluster count label */}
+				<Layer
+					filter={["has", "point_count"]}
+					id="taxi-stands-cluster-count"
+					layout={{
+						"text-field": "{point_count_abbreviated}",
+						"text-size": 12,
+						"text-font": ["Open Sans Bold"],
+					}}
+					paint={{
+						"text-color": "#78350f",
+					}}
+					type="symbol"
+				/>
+				{/* Individual taxi stand dots */}
+				<Layer
+					filter={["!", ["has", "point_count"]]}
+					id="taxi-stands-point"
+					paint={{
+						"circle-color": "#d97706",
+						"circle-radius": 7,
+						"circle-stroke-color": darkMode ? "#1f2937" : "#ffffff",
+						"circle-stroke-width": 2,
+					}}
+					type="circle"
+				/>
+				{/* Taxi stand label (visible at zoom >= 14) */}
+				<Layer
+					filter={["!", ["has", "point_count"]]}
+					id="taxi-stands-label"
+					layout={{
+						"text-field": ["get", "name"],
+						"text-size": 11,
+						"text-offset": [0, 1.4],
+						"text-anchor": "top",
+						"text-max-width": 10,
+						"text-font": ["Open Sans Regular"],
+					}}
+					minzoom={14}
+					paint={{
+						"text-color": darkMode ? "#fde68a" : "#92400e",
+						"text-halo-color": darkMode ? "#111827" : "#ffffff",
+						"text-halo-width": 1.5,
+					}}
+					type="symbol"
+				/>
+			</Source>
+
 			{/* Vehicle markers */}
 			{vehicles.map((vehicle) => {
 				const isBus = vehicle.type === "jutc";
-				const fill = isBus ? "#f97316" : "#007AFF";
+				const accentColor = isBus ? "#10b981" : "#8b5cf6";
+				const rotation = vehicle.heading ?? 0;
 				return (
 					<Marker
-						anchor="bottom"
+						anchor="center"
 						key={vehicle.id}
 						latitude={vehicle.lat}
 						longitude={vehicle.lng}
@@ -325,33 +580,128 @@ function MapLibreInner({
 							onClick={(e) => handleVehicleClick(vehicle, e)}
 							type="button"
 						>
-							<svg
-								className="drop-shadow-md transition-transform duration-150 group-hover:scale-110"
-								height="38"
-								viewBox="0 0 38 38"
-								width="38"
-								xmlns="http://www.w3.org/2000/svg"
+							<div
+								className="drop-shadow-lg transition-transform duration-150 group-hover:scale-110"
+								style={{ transform: `rotate(${rotation}deg)` }}
 							>
-								<title>{vehicle.name}</title>
-								<circle
-									cx="19"
-									cy="19"
-									fill={fill}
-									r="18"
-									stroke="white"
-									strokeWidth="2.5"
-								/>
-								<text
-									fill="white"
-									fontSize="14"
-									fontWeight="bold"
-									textAnchor="middle"
-									x="19"
-									y="24"
-								>
-									{isBus ? "B" : "T"}
-								</text>
-							</svg>
+								{isBus ? (
+									/* Bus silhouette icon */
+									<svg
+										height="44"
+										viewBox="0 0 44 44"
+										width="44"
+										xmlns="http://www.w3.org/2000/svg"
+									>
+										<title>{vehicle.name}</title>
+										{/* Direction cone */}
+										<polygon
+											fill={accentColor}
+											opacity="0.4"
+											points="22,0 16,12 28,12"
+										/>
+										{/* Body */}
+										<rect
+											fill="#1f2937"
+											height="24"
+											rx="5"
+											width="20"
+											x="12"
+											y="12"
+										/>
+										{/* Windshield */}
+										<rect
+											fill={accentColor}
+											height="6"
+											rx="2"
+											width="14"
+											x="15"
+											y="14"
+										/>
+										{/* Side windows */}
+										<rect
+											fill="#9ca3af"
+											height="3"
+											rx="1"
+											width="4"
+											x="14"
+											y="23"
+										/>
+										<rect
+											fill="#9ca3af"
+											height="3"
+											rx="1"
+											width="4"
+											x="20"
+											y="23"
+										/>
+										<rect
+											fill="#9ca3af"
+											height="3"
+											rx="1"
+											width="4"
+											x="26"
+											y="23"
+										/>
+										{/* Wheels */}
+										<circle cx="15" cy="35" fill="#374151" r="2.5" />
+										<circle cx="29" cy="35" fill="#374151" r="2.5" />
+									</svg>
+								) : (
+									/* Taxi/car silhouette icon */
+									<svg
+										height="44"
+										viewBox="0 0 44 44"
+										width="44"
+										xmlns="http://www.w3.org/2000/svg"
+									>
+										<title>{vehicle.name}</title>
+										{/* Direction cone */}
+										<polygon
+											fill={accentColor}
+											opacity="0.4"
+											points="22,2 17,12 27,12"
+										/>
+										{/* Body */}
+										<rect
+											fill="#1f2937"
+											height="22"
+											rx="6"
+											width="18"
+											x="13"
+											y="12"
+										/>
+										{/* Roof / top accent */}
+										<rect
+											fill={accentColor}
+											height="4"
+											rx="2"
+											width="10"
+											x="17"
+											y="14"
+										/>
+										{/* Windows */}
+										<rect
+											fill="#9ca3af"
+											height="4"
+											rx="1.5"
+											width="5"
+											x="14.5"
+											y="21"
+										/>
+										<rect
+											fill="#9ca3af"
+											height="4"
+											rx="1.5"
+											width="5"
+											x="24.5"
+											y="21"
+										/>
+										{/* Wheels */}
+										<circle cx="16" cy="33" fill="#374151" r="2" />
+										<circle cx="28" cy="33" fill="#374151" r="2" />
+									</svg>
+								)}
+							</div>
 						</button>
 					</Marker>
 				);
@@ -409,6 +759,69 @@ function MapLibreInner({
 				</Marker>
 			)}
 
+			{/* Stop / stand info popup */}
+			{selectedStop && (
+				<Marker
+					anchor="bottom"
+					latitude={selectedStop.lat}
+					longitude={selectedStop.lng}
+					offset={[0, -12]}
+				>
+					<div className="pointer-events-auto min-w-44 overflow-hidden rounded-2xl border border-white/60 bg-white shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
+						<div className="p-3">
+							<div className="mb-1.5 flex items-center gap-2">
+								<div
+									className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+									style={{
+										backgroundColor:
+											selectedStop.type === "bus" ? "#10b981" : "#d97706",
+									}}
+								>
+									{selectedStop.type === "bus" ? (
+										<Bus color="white" size={14} />
+									) : (
+										<Car color="white" size={14} />
+									)}
+								</div>
+								<div className="min-w-0 flex-1">
+									<p className="font-semibold text-sm leading-tight text-gray-900 dark:text-neutral-100">
+										{selectedStop.name}
+									</p>
+									<p className="text-xs text-gray-500 dark:text-neutral-400">
+										{selectedStop.type === "bus" ? "Bus Stop" : "Taxi Stand"}
+									</p>
+								</div>
+								<button
+									aria-label="Close popup"
+									className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 dark:text-neutral-500 dark:hover:bg-neutral-800"
+									onClick={() => setSelectedStop(null)}
+									type="button"
+								>
+									✕
+								</button>
+							</div>
+							{selectedStop.details && (
+								<p className="border-t border-gray-100 pt-1.5 text-xs text-gray-500 dark:border-neutral-700 dark:text-neutral-400">
+									{selectedStop.details}
+								</p>
+							)}
+						</div>
+					</div>
+				</Marker>
+			)}
+
+			{/* Simulated user location dot */}
+			{simUser?.enabled && (
+				<Marker anchor="center" latitude={simUser.lat} longitude={simUser.lng}>
+					<div className="relative flex items-center justify-center">
+						{/* Soft halo */}
+						<div className="absolute h-8 w-8 rounded-full bg-blue-400/25" />
+						{/* Blue dot */}
+						<div className="h-4 w-4 rounded-full border-2 border-white bg-blue-500 shadow-md" />
+					</div>
+				</Marker>
+			)}
+
 			{/* Vehicle info popup */}
 			{selectedVehicle && (
 				<Marker
@@ -435,9 +848,9 @@ function MapLibreInner({
 const MapLibreMap = dynamic(() => Promise.resolve(MapLibreInner), {
 	ssr: false,
 	loading: () => (
-		<div className="flex h-full w-full items-center justify-center bg-gray-50">
-			<div className="flex flex-col items-center gap-2 text-gray-400">
-				<div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
+		<div className="flex h-full w-full items-center justify-center bg-gray-50 dark:bg-neutral-950">
+			<div className="flex flex-col items-center gap-2 text-gray-400 dark:text-neutral-500">
+				<div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500 dark:border-neutral-600 dark:border-t-blue-400" />
 				<span className="text-sm">Loading map…</span>
 			</div>
 		</div>
@@ -451,66 +864,84 @@ export default function WebMap({
 	toMarker,
 	routePoints,
 	flyTo,
+	darkMode = false,
 }: WebMapProps) {
-	// Poll crowdsource API for live vehicles every 10 s
-	const { data: liveData } = useQuery({
-		queryKey: ["crowdsource", "nearbyVehicles"],
-		queryFn: () =>
-			client.crowdsource.getNearbyVehicles({
-				lat: DEFAULT_CENTER.lat,
-				lng: DEFAULT_CENTER.lng,
-				radiusKm: 15,
-			}),
-		refetchInterval: 10_000,
-		staleTime: 8_000,
-	});
+	// ── Simulation state ──────────────────────────────
+	const [simVehicles, setSimVehicles] = useState<SimulatedVehicle[]>(
+		() => createSimulatedVehicles()
+	);
+	const [simUser, setSimUser] = useState<SimulatedUser>(
+		() => createSimulatedUser()
+	);
+	const [simConfig] = useState<SimulationConfig>(() => DEFAULT_CONFIG);
+	const lastTickRef = useRef<number>(Date.now());
 
-	const vehicles: Vehicle[] =
-		liveData && liveData.length > 0
-			? liveData.map((v) => ({
-					id: v.id,
-					type:
-						v.vehicleType === "jutc"
-							? ("jutc" as const)
-							: ("robot_taxi" as const),
-					lat: v.lat,
-					lng: v.lng,
-					name: v.routeNumber
-						? `JUTC Bus ${v.routeNumber}`
-						: `Taxi ${v.licensePlate}`,
-					capacity: v.vehicleType === "jutc" ? 72 : 4,
-					avgCost: v.vehicleType === "jutc" ? "JMD $100" : "JMD $800",
-					route: v.routeNumber ?? undefined,
-				}))
-			: MOCK_VEHICLES;
+	// On mount, snap vehicle waypoints to real road geometry via OSRM
+	useEffect(() => {
+		let cancelled = false;
+		resolveRoadPaths(simVehicles).then((snapped) => {
+			if (!cancelled) setSimVehicles([...snapped]);
+		});
+		return () => { cancelled = true; };
+	// Run once on mount only
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only
+	}, []);
+
+	// Tick loop — runs entirely in-browser, no separate process needed
+	useEffect(() => {
+		if (!simConfig.running) return;
+		const id = setInterval(() => {
+			const now = Date.now();
+			const delta = (now - lastTickRef.current) / 1000;
+			lastTickRef.current = now;
+			setSimVehicles((prev) => tickVehicles(prev, simConfig, delta));
+			setSimUser((prev) => tickUser(prev, simConfig, delta));
+		}, simConfig.tickInterval);
+		return () => clearInterval(id);
+	}, [simConfig]);
+
+	// Map simulated vehicles to the Vehicle shape the map expects
+	const vehicles: Vehicle[] = simVehicles.map((v) => ({
+		id: v.id,
+		type: v.type,
+		lat: v.lat,
+		lng: v.lng,
+		name: v.name,
+		capacity: v.capacity,
+		avgCost: v.avgCost,
+		route: v.route,
+		heading: v.heading,
+	}));
 
 	return (
 		<div className="absolute inset-0 overflow-hidden">
 			<MapLibreMap
+				darkMode={darkMode}
 				flyTo={flyTo}
 				fromMarker={fromMarker}
 				routePoints={routePoints}
+				simUser={simUser}
 				toMarker={toMarker}
 				vehicles={vehicles}
 			/>
 
-			{/* MapLibre GL control overrides — iOS style */}
+			{/* MapLibre GL control overrides */}
 			<style>{`
 				.maplibregl-map {
 					font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif !important;
 				}
 				.maplibregl-ctrl-group {
-					background: rgba(255,255,255,0.92) !important;
+					background: ${darkMode ? "rgba(23,23,23,0.92)" : "rgba(255,255,255,0.92)"} !important;
 					backdrop-filter: blur(12px) !important;
 					border-radius: 12px !important;
 					border: none !important;
-					box-shadow: 0 2px 12px rgba(0,0,0,0.10) !important;
+					box-shadow: 0 2px 12px ${darkMode ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.10)"} !important;
 					overflow: hidden !important;
 				}
 				.maplibregl-ctrl-group button {
 					width: 40px !important;
 					height: 40px !important;
-					border-bottom: 1px solid rgba(0,0,0,0.06) !important;
+					border-bottom: 1px solid ${darkMode ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"} !important;
 				}
 				.maplibregl-ctrl-group button:last-child {
 					border-bottom: none !important;
@@ -518,17 +949,17 @@ export default function WebMap({
 				.maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon,
 				.maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon,
 				.maplibregl-ctrl-compass .maplibregl-ctrl-icon {
-					filter: invert(35%) sepia(100%) saturate(1000%) hue-rotate(195deg) !important;
+					filter: ${darkMode ? "invert(85%) sepia(0%) saturate(0%) brightness(1.2)" : "invert(35%) sepia(100%) saturate(1000%) hue-rotate(195deg)"} !important;
 				}
 				.maplibregl-ctrl-attrib {
-					background: rgba(255,255,255,0.75) !important;
+					background: ${darkMode ? "rgba(23,23,23,0.75)" : "rgba(255,255,255,0.75)"} !important;
 					backdrop-filter: blur(8px) !important;
 					border-radius: 8px !important;
 					font-size: 10px !important;
-					color: #8e8e93 !important;
+					color: ${darkMode ? "#737373" : "#8e8e93"} !important;
 				}
 				.maplibregl-ctrl-attrib a {
-					color: #007AFF !important;
+					color: ${darkMode ? "#60a5fa" : "#007AFF"} !important;
 				}
 			`}</style>
 		</div>
